@@ -1,0 +1,42 @@
+[Unit]
+Description=Nirantara IPO API
+Documentation=https://github.com/stackeducationorg/nirantara-ipo
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nirantara
+Group=nirantara
+WorkingDirectory=/opt/nirantara/server
+EnvironmentFile=/opt/nirantara/server/.env
+ExecStart=/usr/bin/node dist/index.js
+
+# The process handles SIGINT itself to close Chromium and the database cleanly.
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+Restart=always
+RestartSec=5
+
+# On a 1GB box a runaway Chromium can take the whole machine down. Cap the unit so
+# systemd restarts just the API instead of the kernel killing something at random.
+MemoryMax=820M
+MemoryHigh=700M
+
+# Hardening: the service needs nothing outside its own directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/nirantara/server/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nirantara-api
+
+[Install]
+WantedBy=multi-user.target
