@@ -1,0 +1,27 @@
+# The image only needs server/, and Docker sends this whole directory as build context.
+# Keeping it small is the difference between a fast deploy and uploading node_modules.
+
+node_modules
+**/node_modules
+
+# Other workspaces
+web
+mobile
+
+# Build output and caches
+**/dist
+**/build
+**/.expo
+**/*.tsbuildinfo
+
+# Local database and secrets — the volume supplies these in production
+server/data
+**/.env
+**/.env.local
+
+# Repo noise
+.git
+.github
+*.log
+*.md
+nirantara_logo.png
