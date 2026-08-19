@@ -1,0 +1,1268 @@
+/* ============================================================ decor tiles
+
+   Soft gradient tiles scattered through the page gutters, framing the centred
+   column. They only appear once the gutters are genuinely wide enough to hold
+   them, so they can never crowd or overlap the content.
+   ====================================================================== */
+
+.lp-decor {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1500px;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  display: none;
+}
+
+.lp-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: calc((100% - var(--lp-max)) / 2);
+}
+
+.lp-gutter.left { left: 0; }
+.lp-gutter.right { right: 0; }
+
+.lp-tile {
+  position: absolute;
+  border-radius: 3px;
+  opacity: 0.85;
+}
+
+/* Below this width the gutters are too narrow to hold tiles without crowding. */
+@media (min-width: 1360px) {
+  .lp-decor { display: block; }
+}
+
+[data-theme="dark"] .lp-tile { opacity: 0.3; }
+
+/* ============================================================================
+   Marketing landing page. Uses the same design tokens as the app so the two
+   never drift apart, with a wider canvas and larger type scale.
+   ============================================================================ */
+
+.lp {
+  --lp-max: 1120px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  /* Containing block for the decor layer, plus a stacking context so its
+     negative z-index lands above this background rather than behind the page. */
+  position: relative;
+  isolation: isolate;
+}
+
+/* ------------------------------------------------------------------- nav */
+
+.lp-nav {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 62px;
+  padding: 0 24px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+
+.lp-nav-inner {
+  width: 100%;
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lp-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 640;
+  font-size: 15.5px;
+  letter-spacing: -0.02em;
+}
+
+.lp-brand img {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: block;
+}
+
+.lp-nav-links {
+  display: flex;
+  gap: 4px;
+  margin-left: 18px;
+}
+
+.lp-nav-links a {
+  padding: 7px 12px;
+  border-radius: 8px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: 0.15s;
+}
+
+.lp-nav-links a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.lp-nav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ------------------------------------------------------------------ hero */
+
+.lp-section {
+  width: 100%;
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.lp-hero {
+  padding: 84px 24px 64px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.lp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin-bottom: 26px;
+}
+
+.lp-eyebrow b {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.lp-h1 {
+  margin: 0 auto 20px;
+  max-width: 780px;
+  font-size: clamp(34px, 6vw, 60px);
+  line-height: 1.06;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.lp-h1 em {
+  font-style: normal;
+  background: linear-gradient(100deg, var(--accent), #9b6cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lp-lede {
+  margin: 0 auto 34px;
+  max-width: 580px;
+  font-size: 16.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.lp-cta-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn.lg {
+  padding: 12px 22px;
+  font-size: 14.5px;
+  border-radius: 9px;
+}
+
+.lp-cta-note {
+  margin-top: 16px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+/* ------------------------------------------------------- live proof strip */
+
+.lp-proof {
+  margin: 56px auto 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.lp-proof-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  font-weight: 620;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.lp-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pos);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pos) 22%, transparent);
+  animation: lp-pulse 2s ease-in-out infinite;
+}
+
+@keyframes lp-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.lp-proof-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.lp-proof-cell {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.lp-proof-cell:last-child {
+  border-right: none;
+}
+
+.lp-proof-name {
+  font-size: 13px;
+  font-weight: 560;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lp-proof-gmp {
+  margin-top: 4px;
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+}
+
+/* ----------------------------------------------------------------- stats */
+
+.lp-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin: 22px auto 0;
+}
+
+.lp-stat {
+  background: var(--surface);
+  padding: 20px 18px;
+  text-align: center;
+}
+
+.lp-stat-num {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.lp-stat-label {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+/* -------------------------------------------------------------- sections */
+
+.lp-block {
+  padding: 84px 0 0;
+}
+
+.lp-block-head {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 40px;
+}
+
+.lp-kicker {
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.lp-h2 {
+  margin: 0 0 12px;
+  font-size: clamp(25px, 3.6vw, 36px);
+  line-height: 1.15;
+  font-weight: 680;
+  letter-spacing: -0.03em;
+}
+
+.lp-sub {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+/* --------------------------------------------------------- feature cards */
+
+.lp-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 14px;
+}
+
+.lp-card {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  transition: 0.18s;
+}
+
+.lp-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.lp-card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+
+.lp-card h3 {
+  margin: 0 0 7px;
+  font-size: 15.5px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.lp-card p {
+  margin: 0;
+  font-size: 13.8px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+/* Wide highlight card, used for the headline capability. */
+.lp-card.wide {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  padding: 28px;
+}
+
+.lp-card.wide .lp-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.lp-callout {
+  flex-shrink: 0;
+  min-width: 250px;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.lp-callout-figure {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.lp-callout-note {
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+/* ----------------------------------------------------------------- steps */
+
+.lp-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+  counter-reset: lp-step;
+}
+
+.lp-step {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  position: relative;
+}
+
+.lp-step::before {
+  counter-increment: lp-step;
+  content: counter(lp-step);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 12.5px;
+  font-weight: 680;
+  margin-bottom: 14px;
+}
+
+.lp-step h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 620;
+}
+
+.lp-step p {
+  margin: 0;
+  font-size: 13.8px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+/* ------------------------------------------------------------ closing CTA */
+
+.lp-final {
+  margin: 84px auto 0;
+  padding: 56px 32px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 62%),
+    var(--surface);
+}
+
+/* --------------------------------------------------------------- footer */
+
+.lp-footer {
+  margin-top: 84px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+  padding: 44px 24px 26px;
+}
+
+.lp-footer-inner {
+  max-width: var(--lp-max);
+  margin: 0 auto;
+}
+
+.lp-footer-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+  margin-bottom: 32px;
+}
+
+.lp-footer-brand {
+  min-width: 220px;
+}
+
+.lp-footer-brand p {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-2);
+  max-width: 260px;
+  line-height: 1.6;
+}
+
+.lp-footer-col h4 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.lp-footer-col a,
+.lp-footer-col span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.lp-footer-col a:hover {
+  color: var(--text);
+}
+
+.lp-footer-bottom {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.lp-footer-credit {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lp-footer-credit a {
+  color: var(--text-2);
+  font-weight: 540;
+}
+
+.lp-footer-credit a:hover {
+  color: var(--accent);
+}
+
+.lp-disclaimer {
+  margin-top: 18px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-3);
+  max-width: 720px;
+}
+
+/* --------------------------------------------------------------- mobile */
+
+@media (max-width: 820px) {
+  .lp-nav-links {
+    display: none;
+  }
+
+  .lp-hero {
+    padding: 56px 20px 44px;
+  }
+
+  .lp-block {
+    padding-top: 60px;
+  }
+
+  .lp-card.wide {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+  }
+
+  .lp-callout {
+    min-width: 0;
+  }
+
+  .lp-final {
+    margin-top: 60px;
+    padding: 40px 22px;
+  }
+
+  .lp-footer-credit {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* ============================================================= typography
+
+   The landing page uses Geist (SIL OFL, served from Google Fonts) rather than
+   the app's Inter — a modern neo-grotesque with a tighter, more editorial feel.
+   Scoped to `.lp` so the signed-in app keeps its own type system.
+   ========================================================================== */
+
+.lp {
+  font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.011em;
+}
+
+.lp .mono,
+.lp-proof-gmp,
+.lp-stat-num {
+  font-family: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.lp-h1,
+.lp-h2 {
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+/* ================================================================== footer
+
+   Two bands, the pattern used by most modern developer-product sites:
+   a light call-to-action band, then a dark plate carrying the link columns.
+   The dark plate stays dark in both themes, which is what gives the page its
+   deliberate "end of document" full stop.
+   ========================================================================== */
+
+.lp-cta-band {
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  padding: 108px 24px;
+  text-align: center;
+}
+
+.lp-cta-band h2 {
+  margin: 0 auto 16px;
+  max-width: 620px;
+  font-size: clamp(30px, 4.6vw, 50px);
+  line-height: 1.08;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.lp-cta-band p {
+  margin: 0 auto 30px;
+  max-width: 440px;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--lp-muted);
+}
+
+/* Warm neutral for secondary copy, held constant across themes so the band
+   keeps the same character whichever palette is active. */
+.lp {
+  --lp-muted: #5f5a54;
+  --lp-plate: #16161a;
+  --lp-plate-2: #202026;
+}
+
+[data-theme='dark'] .lp {
+  --lp-muted: #8d8781;
+}
+
+.btn.pill {
+  border-radius: 999px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+
+.btn.pill:hover:not(:disabled) {
+  background: var(--text-2);
+  border-color: var(--text-2);
+  color: var(--bg);
+}
+
+/* ------------------------------------------------------- big blue plate
+
+   A tall, saturated blue closing plate. The depth is deliberate: it reads as a
+   hard full stop to the page rather than a thin strip of links.
+   ====================================================================== */
+
+.lp-plate {
+  --plate-blue: #1f40ed;
+  --plate-deep: #0a24bd;
+  background:
+    radial-gradient(120% 80% at 15% 0%, rgba(90, 130, 255, 0.38) 0%, rgba(90, 130, 255, 0) 55%),
+    radial-gradient(90% 70% at 85% 20%, rgba(60, 100, 250, 0.3) 0%, rgba(60, 100, 250, 0) 60%),
+    linear-gradient(170deg, var(--plate-blue) 0%, #1433d8 42%, var(--plate-deep) 100%);
+  color: #ffffff;
+  padding: 110px 24px 34px;
+  overflow: hidden;
+  position: relative;
+}
+
+.lp-plate-inner {
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* Oversized statement line — the reason the plate is this tall. */
+.lp-plate-statement {
+  margin: 0 0 76px;
+  max-width: 900px;
+  font-size: clamp(34px, 5.6vw, 66px);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+}
+
+.lp-plate-statement span {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.lp-plate-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 64px;
+  padding-bottom: 72px;
+}
+
+.lp-plate-brand {
+  min-width: 260px;
+  flex: 1;
+}
+
+.lp-plate-name {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.lp-plate-name img {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: block;
+}
+
+.lp-plate-tagline {
+  margin: 18px 0 26px;
+  font-size: 19px;
+  line-height: 1.45;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  max-width: 320px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.lp-plate-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--plate-deep);
+  font-size: 14.5px;
+  font-weight: 550;
+  transition: 0.15s;
+}
+
+.lp-plate-cta:hover {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.lp-plate-cols {
+  display: flex;
+  gap: 72px;
+  flex-wrap: wrap;
+}
+
+.lp-plate-col h4 {
+  margin: 0 0 18px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.lp-plate-col a,
+.lp-plate-col span {
+  display: block;
+  margin-bottom: 13px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.82);
+  transition: color 0.15s;
+}
+
+.lp-plate-col a:hover {
+  color: #ffffff;
+}
+
+/* Giant wordmark across the base of the plate. Clipped rather than wrapped, so
+   it scales with the viewport instead of reflowing into a second line. */
+.lp-wordmark {
+  font-size: clamp(60px, 15.5vw, 210px);
+  line-height: 0.82;
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  color: rgba(255, 255, 255, 0.13);
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+  margin-bottom: 26px;
+}
+
+.lp-plate-bottom {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 26px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.lp-plate-bottom strong {
+  color: #ffffff;
+  font-weight: 550;
+}
+
+.lp-plate-credit {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lp-plate-credit a {
+  color: #ffffff;
+  font-weight: 550;
+}
+
+.lp-plate-credit a:hover {
+  text-decoration: underline;
+}
+
+/* The toggle must stay legible on blue in either theme. */
+.lp-plate .icon-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.lp-plate .icon-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.lp-plate-disclaimer {
+  margin: 24px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.45);
+  max-width: 780px;
+}
+
+@media (max-width: 820px) {
+  .lp-cta-band {
+    padding: 72px 20px;
+  }
+
+  .lp-plate {
+    padding: 68px 20px 28px;
+  }
+
+  .lp-plate-statement {
+    margin-bottom: 48px;
+  }
+
+  .lp-plate-top {
+    gap: 40px;
+    padding-bottom: 48px;
+  }
+
+  .lp-plate-cols {
+    gap: 40px;
+  }
+
+  .lp-plate-credit {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* ====================================================== hero type overrides
+
+   Serif display headline over a light page, sized and coloured to match a
+   classic marketing-page hierarchy:
+     headline  ~63px serif, weight 400, near-black (#111827)
+     lede      ~18.4px sans, mid grey (#6b7280)
+     CTA       solid black, 15px/500, 4px radius
+
+   Source Serif 4 (SIL OFL) stands in for the commercial display face; Georgia
+   is the system fallback, which is what most visitors would see regardless.
+   ====================================================================== */
+
+.lp {
+  --lp-ink: #111827;
+  --lp-grey: #6b7280;
+}
+
+[data-theme='dark'] .lp {
+  --lp-ink: #f5f6f8;
+  --lp-grey: #9aa1ad;
+}
+
+.lp-h1 {
+  font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  font-size: clamp(38px, 5.4vw, 63px);
+  font-weight: 400;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--lp-ink);
+  max-width: 860px;
+}
+
+/* The gradient accent fights a serif at this size, so the emphasis is weight. */
+.lp-h1 em {
+  font-style: normal;
+  font-weight: 600;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: var(--lp-ink);
+}
+
+.lp-lede {
+  font-size: 18.4px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  color: var(--lp-grey);
+  max-width: 620px;
+}
+
+.lp-h2,
+.lp-cta-band h2 {
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  color: var(--lp-ink);
+}
+
+.lp-cta-band p {
+  color: var(--lp-grey);
+}
+
+.lp-sub {
+  color: var(--lp-grey);
+}
+
+/* Solid black primary action, matching the measured button. */
+.lp .btn.primary,
+.lp .btn.pill {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.lp .btn.primary:hover:not(:disabled),
+.lp .btn.pill:hover:not(:disabled) {
+  background: #1f2937;
+  border-color: #1f2937;
+  color: #ffffff;
+}
+
+[data-theme='dark'] .lp .btn.primary,
+[data-theme='dark'] .lp .btn.pill {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #000000;
+}
+
+[data-theme='dark'] .lp .btn.primary:hover:not(:disabled),
+[data-theme='dark'] .lp .btn.pill:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #e5e7eb;
+  color: #000000;
+}
+
+.lp .btn.lg {
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* The plate CTA stays a white pill against the blue. */
+.lp .lp-plate-cta {
+  border-radius: 999px;
+}
+
+.lp-eyebrow {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: none;
+  color: var(--lp-grey);
+}
+
+[data-theme='dark'] .lp-eyebrow {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.lp-nav {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+
+/* ================================================= split hero + showcase card
+
+   Above 1040px the hero becomes two columns: copy on the left, the animated
+   card on the right. Below that it stacks and re-centres, because a left rag
+   plus a full-width card reads badly on a narrow screen.
+   ====================================================================== */
+
+@media (min-width: 1040px) {
+  .lp-hero {
+    text-align: left;
+    padding: 76px 24px 72px;
+  }
+
+  .lp-hero-grid {
+    max-width: var(--lp-max);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 430px);
+    gap: 56px;
+    align-items: center;
+  }
+
+  .lp-hero-copy .lp-h1,
+  .lp-hero-copy .lp-lede {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .lp-hero-copy .lp-cta-row {
+    justify-content: flex-start;
+  }
+
+  .lp-hero .lp-h1 {
+    font-size: clamp(40px, 3.9vw, 56px);
+  }
+}
+
+.lp-hero-showcase {
+  display: none;
+}
+
+@media (min-width: 1040px) {
+  .lp-hero-showcase {
+    display: block;
+  }
+}
+
+/* --------------------------------------------------------------- the card */
+
+.hero-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 18px 50px rgba(20, 40, 80, 0.1);
+  overflow: hidden;
+}
+
+[data-theme='dark'] .hero-card {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+.hero-card-wave {
+  height: 108px;
+  background: linear-gradient(180deg, rgba(65, 139, 253, 0.07), rgba(109, 203, 189, 0.05));
+  border-bottom: 1px solid var(--border);
+}
+
+.hero-card-wave svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Light travelling along each stroke: a long dash chased by a gap, scrolled
+   forever. Offsetting the delays makes the three strands weave rather than
+   move as one block. */
+.hc-path {
+  stroke-dasharray: 190 260;
+  animation: hc-flow 3.6s linear infinite;
+}
+
+.hc-1 {
+  animation-duration: 3.6s;
+}
+.hc-2 {
+  animation-duration: 4.4s;
+  animation-delay: -1.1s;
+}
+.hc-3 {
+  animation-duration: 5.2s;
+  animation-delay: -2.3s;
+}
+
+@keyframes hc-flow {
+  to {
+    stroke-dashoffset: -450;
+  }
+}
+
+.hero-card-body {
+  padding: 18px;
+}
+
+.hero-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.hero-card-title {
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.hero-card-sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.hero-card-chip {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 550;
+  transition: 0.3s;
+}
+
+.hero-card-chip.is-done {
+  background: var(--pos-subtle);
+  color: var(--pos);
+}
+
+.hero-card-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.42s ease, transform 0.42s ease;
+}
+
+.hero-card-row.in {
+  opacity: 1;
+  transform: none;
+}
+
+.hero-card-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  flex-shrink: 0;
+}
+
+.hero-card-row.in .hero-card-dot.allotted {
+  background: var(--pos);
+}
+
+.hero-card-row.in .hero-card-dot.none {
+  background: var(--text-3);
+}
+
+.hero-card-label {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.hero-card-detail {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.hero-card-total {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--pos-subtle);
+  color: var(--pos);
+  font-size: 13.5px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+.hero-card-total.in {
+  opacity: 1;
+  transform: none;
+}
+
+.hero-card-amount {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* Motion is decorative here; the card is fully legible without it. */
+@media (prefers-reduced-motion: reduce) {
+  .hc-path {
+    animation: none;
+    stroke-dasharray: none;
+  }
+
+  .hero-card-row,
+  .hero-card-total {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

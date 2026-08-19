@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.expo/
+*.log
+
+# Local database and secrets
+server/data/
+.env
+.env.local
+
+# OS noise
+.DS_Store
+Thumbs.db

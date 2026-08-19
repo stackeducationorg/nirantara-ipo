@@ -1,0 +1,48 @@
+{
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "//": "Free tier. Android -> sideloadable .apk. iOS -> .app for the Simulator (no Apple account needed).",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "//": "This machine's Wi-Fi address. Re-check with ipconfig if the network changes.",
+        "EXPO_PUBLIC_API_BASE": "http://172.20.10.3:4000/api"
+      }
+    },
+    "device": {
+      "//": "Installable on real iPhones. Requires a paid Apple Developer account for signing.",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://api.example.com/api"
+      }
+    },
+    "production": {
+      "//": "Store submissions: Android .aab, iOS .ipa. Neither can be installed by hand.",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE": "https://api.example.com/api"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

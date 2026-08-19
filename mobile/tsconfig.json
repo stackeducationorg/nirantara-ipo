@@ -1,0 +1,15 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    // Expo's base sets node10 resolution, which cannot follow the "exports" maps that
+    // @tanstack/react-query and friends publish — their types silently degrade to `any`.
+    // Metro resolves package exports, so "bundler" matches runtime behaviour.
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
