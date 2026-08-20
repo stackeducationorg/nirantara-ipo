@@ -6,7 +6,9 @@
  *   EXPO_PUBLIC_API_BASE=https://api.yourdomain.com/api
  * In Expo Go this can stay unset; the app falls back to the host that served the bundle.
  */
-const apiBase = process.env.EXPO_PUBLIC_API_BASE || 'http://localhost:4000/api';
+// Defaults to the deployed API so a build never silently ships pointing at a developer's
+// machine. Override with EXPO_PUBLIC_API_BASE when testing against a local server.
+const apiBase = process.env.EXPO_PUBLIC_API_BASE || 'https://api.nirantara.cloud/api';
 
 // Android blocks plain HTTP by default. Allow it only when the API is not HTTPS, which is the
 // case while testing against a machine on your LAN.
