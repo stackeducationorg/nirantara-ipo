@@ -7,89 +7,30 @@ import type { BrowserProfile } from './browserAdapter.js';
 const log = logger('registrar');
 
 /**
- * Selector profiles for the form-driven registrars.
+ * Selector profiles for registrars that still need a real browser.
  *
- * IMPORTANT: KFin and MUFG sit behind Imperva/Akamai bot walls, so their markup could not be
- * inspected directly while these defaults were written — the selectors below are the documented
- * starting point, not verified truth, and registrars redesign these pages often.
+ * Everything else now has a dedicated HTTP adapter — see `index.ts`. Cameo is the only
+ * registrar left here, and it cannot actually be automated: its form enforces an image
+ * captcha (`txt_phy_captcha`) that a browser can type into but not read. The profile is kept
+ * so the registrar is still recognised and reported as unsupported rather than unknown.
  *
  * Override any field without touching this file by dropping a `registrar-profiles.json` into
- * DATA_DIR, keyed by registrar. Run `npm run sync -w server -- probe <key>` to open the page in
- * a headed browser and confirm the selectors.
+ * DATA_DIR, keyed by registrar. `npm run registrartest -w server` exercises the HTTP adapters
+ * against the live sites.
  */
 const DEFAULTS: Record<string, BrowserProfile> = {
-  kfintech: {
-    key: 'kfintech',
-    name: 'KFin Technologies',
-    match: ['kfintech', 'kfin', 'karvy', 'kosmic'],
-    url: 'https://kosmic.kfintech.com/ipostatus/',
-    companySelect: '#ddl_ipo',
-    searchType: { selector: '#query', match: /pan/i },
-    panInput: '#pan',
-    submit: '#btn_submit_query',
-    result: '#result, .table-responsive, #divResult',
-    captcha: 'image',
-  },
-
-  mufg: {
-    key: 'mufg',
-    name: 'MUFG Intime (Link Intime)',
-    match: ['mufg', 'linkintime', 'link intime', 'mpms'],
-    url: 'https://in.mpms.mufg.com/Initial_Offer/IPO.aspx',
-    companySelect: '#ddlCompany',
-    searchType: { selector: '#ddlSelectionType', match: /pan/i },
-    panInput: '#txtPan',
-    submit: '#btnSearch',
-    result: '#grdIPO, #divResult, .table-responsive',
-    captcha: 'image',
-  },
-
-  skyline: {
-    key: 'skyline',
-    name: 'Skyline Financial Services',
-    match: ['skyline'],
-    url: 'https://www.skylinerta.com/ipo.php',
-    companySelect: '#company',
-    panInput: 'input[name="pan"], #pan',
-    submit: 'input[type="submit"], button[type="submit"]',
-    result: '.checkfield, table',
-    captcha: 'none',
-  },
-
-  maashitla: {
-    key: 'maashitla',
-    name: 'Maashitla Securities',
-    match: ['maashitla'],
-    url: 'https://www.maashitla.com/allotment-status/public-issues',
-    companySelect: '#ddlCompany, select[name="company"]',
-    panInput: '#txtPan, input[name="search"]',
-    submit: 'button[type="submit"], #btnSearch',
-    result: '#tableData, table',
-    captcha: 'none',
-  },
-
-  purva: {
-    key: 'purva',
-    name: 'Purva Sharegistry',
-    match: ['purva'],
-    url: 'https://www.purvashare.com/investor-service/ipo-query',
-    companySelect: 'select[name="company_id"]',
-    panInput: 'input[name="panNumber"]',
-    submit: 'button[type="submit"], input[type="submit"]',
-    result: 'table, .result',
-    captcha: 'none',
-  },
-
   cameo: {
     key: 'cameo',
     name: 'Cameo Corporate Services',
     match: ['cameo'],
-    url: 'https://ipo.cameoindia.com/',
-    companySelect: 'select',
-    panInput: 'input[formcontrolname="pan"], #pan',
-    submit: 'button[type="submit"]',
+    // The landing page at ipo.cameoindia.com is only a router; the form lives on these hosts.
+    url: 'https://ipostatus1.cameoindia.com/',
+    companySelect: '#drpCompany',
+    searchType: { selector: '#ddlUserTypes', match: /pan/i },
+    panInput: '#txtfolio',
+    submit: '#Button1',
     result: 'table, .result-container',
-    captcha: 'none',
+    captcha: 'image',
   },
 };
 

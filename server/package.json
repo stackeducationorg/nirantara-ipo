@@ -10,8 +10,9 @@
     "sync": "tsx src/cli/sync.ts",
     "selftest": "tsx src/cli/selftest.ts",
     "kfintest": "tsx src/cli/kfintest.ts",
-    "postinstall": "playwright install chromium",
-    "moneytest": "tsx src/cli/moneytest.ts"
+    "moneytest": "tsx src/cli/moneytest.ts",
+    "registrartest": "tsx src/cli/registrartest.ts",
+    "browsers": "playwright install chromium"
   },
   "dependencies": {
     "better-sqlite3": "^12.2.0",

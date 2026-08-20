@@ -1,8 +1,6 @@
-import { config } from '../config.js';
-import { getJson } from '../util/http.js';
+import { getJson, getText } from '../util/http.js';
 import { logger } from '../util/logger.js';
 import { toInt } from '../util/parse.js';
-import { withPage } from './browser.js';
 import type { AllotmentLookup, AllotmentQuery, RegistrarAdapter, RegistrarCompany } from './types.js';
 import { RegistrarError } from './types.js';
 
@@ -26,35 +24,35 @@ let cache: { at: number; items: RegistrarCompany[] } | null = null;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 
 /**
- * The issue list is the one part that still needs a browser: it is rendered by the React app
- * into a MUI listbox rather than served by the public API. It changes a few times a day, so it
- * is fetched at most twice an hour and every actual PAN lookup goes over plain HTTP.
+ * The React app makes no network call for its issue list — the open issues are compiled into
+ * its JavaScript bundle as a JSON literal. Reading them straight out of the bundle means this
+ * adapter needs no browser at all, so it runs on a small host.
+ *
+ * The bundle filename is content-hashed and changes on every KFin deploy, so it is resolved
+ * from the index page rather than hard-coded.
  */
 async function listCompanies(): Promise<RegistrarCompany[]> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.items;
 
-  // On a small host Chromium cannot launch, and calling it anyway hangs the whole allotment
-  // sweep rather than failing fast. Per-PAN lookups below are plain HTTP and keep working.
-  if (!config.enableBrowserRegistrars) {
-    log.warn('browser registrars disabled — KFin issue list unavailable, lookups still work');
-    cache = { at: Date.now(), items: [] };
-    return [];
+  const html = await getText(SITE, { timeoutMs: 25_000 });
+  const src = /src="([^"]*main[^"]*\.js)"/.exec(html);
+  if (!src) throw new RegistrarError('KFin index did not reference a main bundle');
+
+  const bundle = await getText(new URL(src[1], SITE).toString(), { timeoutMs: 30_000 });
+  const literal = /\[\s*\{\s*"clientId"\s*:[\s\S]*?\}\s*\]/.exec(bundle);
+  if (!literal) throw new RegistrarError('KFin bundle did not contain an issue list');
+
+  let parsed: { clientId?: string; name?: string }[];
+  try {
+    parsed = JSON.parse(literal[0]);
+  } catch (err) {
+    throw new RegistrarError(`KFin issue list is not valid JSON: ${(err as Error).message}`);
   }
 
-  const items = await withPage(async (page) => {
-    await page.goto(SITE, { waitUntil: 'networkidle', timeout: 45_000 });
-    await page.waitForSelector('[role="combobox"]', { timeout: 25_000 });
-    await page.locator('[role="combobox"]').first().click();
-    await page.waitForSelector('[role="option"]', { timeout: 15_000 });
-
-    return page.$$eval('[role="option"]', (els) =>
-      els
-        .map((el) => ({
-          code: el.getAttribute('data-value') ?? '',
-          name: (el.textContent ?? '').trim(),
-        }))
-        .filter((o) => o.code && o.name),
-    );
+  const items = parsed.flatMap((row) => {
+    const code = (row.clientId ?? '').trim();
+    const name = (row.name ?? '').trim();
+    return code && name ? [{ code, name }] : [];
   });
 
   cache = { at: Date.now(), items };

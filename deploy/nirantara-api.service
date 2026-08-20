@@ -12,15 +12,15 @@ WorkingDirectory=/opt/nirantara/server
 EnvironmentFile=/opt/nirantara/server/.env
 ExecStart=/usr/bin/node dist/index.js
 
-# The process handles SIGINT itself to close Chromium and the database cleanly.
+# The process handles SIGINT itself to close the database cleanly.
 KillSignal=SIGINT
 TimeoutStopSec=30
 
 Restart=always
 RestartSec=5
 
-# On a 1GB box a runaway Chromium can take the whole machine down. Cap the unit so
-# systemd restarts just the API instead of the kernel killing something at random.
+# On a 1GB box, cap the unit so systemd restarts just the API instead of the kernel
+# picking a victim at random when memory runs short.
 MemoryMax=820M
 MemoryHigh=700M
 

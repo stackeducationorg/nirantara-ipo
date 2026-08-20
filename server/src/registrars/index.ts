@@ -3,17 +3,24 @@ import { nameSimilarity } from '../util/parse.js';
 import { bigshare } from './bigshare.js';
 import { createBrowserAdapter } from './browserAdapter.js';
 import { kfintech } from './kfintech.js';
+import { maashitla } from './maashitla.js';
+import { mufg } from './mufg.js';
 import { browserProfiles } from './profiles.js';
+import { purva } from './purva.js';
+import { skyline } from './skyline.js';
 import type { RegistrarAdapter, RegistrarCompany } from './types.js';
 
 const log = logger('registrar');
 
-// Registrars with a real API come first; the selector-driven browser profiles are the fallback.
+// Every registrar below reaches its allotment data over plain HTTP. Only Cameo still needs a
+// browser profile, and even that cannot be automated because it enforces an image captcha.
+const httpAdapters: RegistrarAdapter[] = [bigshare, kfintech, mufg, maashitla, skyline, purva];
+const httpKeys = new Set(httpAdapters.map((a) => a.key));
+
 const adapters: RegistrarAdapter[] = [
-  bigshare,
-  kfintech,
+  ...httpAdapters,
   ...browserProfiles()
-    .filter((p) => p.key !== 'kfintech')
+    .filter((p) => !httpKeys.has(p.key))
     .map(createBrowserAdapter),
 ];
 

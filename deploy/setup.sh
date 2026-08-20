@@ -27,9 +27,13 @@ fi
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$1"; }
 
+# Playwright's postinstall hook would otherwise download ~400MB of browsers during
+# `npm install`, which is both slow and pointless now that no adapter uses one.
+export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
 # ---------------------------------------------------------------- swap
-# An e2-micro has 1GB of RAM. Chromium alone can ask for more than half of that
-# during a page load, so without swap the kernel will kill the API process.
+# A 1GB instance has very little headroom once Node, nginx and SQLite are resident.
+# Swap keeps a traffic spike or a large sync from getting the API OOM-killed.
 say "Swap"
 if ! swapon --show | grep -q '/swapfile'; then
   fallocate -l 2G /swapfile
@@ -89,17 +93,27 @@ sudo -u "$APP_USER" npx tsc -p tsconfig.json
 echo "built to server/dist"
 
 # ---------------------------------------------------------------- chromium
+# Every registrar that can be automated now runs over plain HTTP, so Chromium is not
+# installed by default. The only browser profile left is Cameo, which enforces an image
+# captcha and therefore cannot be automated with a browser either.
+#
+# Set INSTALL_BROWSER=1 to install it anyway (it needs roughly 400MB and will not fit
+# comfortably on a 1GB instance).
 say "Chromium for registrar lookups"
-if npx --yes playwright@1.49.1 install --with-deps chromium 2>/dev/null; then
-  # Playwright installs into root's cache; move it somewhere the service user can read.
-  mkdir -p /opt/playwright
-  cp -rn /root/.cache/ms-playwright/. /opt/playwright/ 2>/dev/null || true
-  chown -R "$APP_USER:$APP_USER" /opt/playwright
-  BROWSERS_OK=1
-  echo "chromium installed"
+BROWSERS_OK=0
+if [[ "${INSTALL_BROWSER:-0}" == "1" ]]; then
+  if npx --yes playwright@1.49.1 install --with-deps chromium 2>/dev/null; then
+    # Playwright installs into root's cache; move it somewhere the service user can read.
+    mkdir -p /opt/playwright
+    cp -rn /root/.cache/ms-playwright/. /opt/playwright/ 2>/dev/null || true
+    chown -R "$APP_USER:$APP_USER" /opt/playwright
+    BROWSERS_OK=1
+    echo "chromium installed"
+  else
+    echo "chromium install failed — continuing without it"
+  fi
 else
-  BROWSERS_OK=0
-  echo "chromium unavailable — continuing with browser registrars disabled"
+  echo "skipped (not needed; set INSTALL_BROWSER=1 to override)"
 fi
 
 # ---------------------------------------------------------------- env
