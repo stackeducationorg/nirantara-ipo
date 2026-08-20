@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS device_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_device_account ON device_tokens(account_id);
 
--- The saved PAN book. pan_enc is AES-GCM ciphertext; pan_hash is an HMAC for dedupe only.
+-- The saved applicant book. Each row carries a PAN, a demat account, or both; the _enc
+-- columns are AES-GCM ciphertext and the _hash columns are HMACs used only for dedupe.
 CREATE TABLE IF NOT EXISTS pans (
   id           TEXT PRIMARY KEY,
   account_id   TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -198,6 +199,46 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
 addColumnIfMissing('pans', 'demat_enc', 'TEXT');
 addColumnIfMissing('pans', 'demat_hash', 'TEXT');
 addColumnIfMissing('pans', 'depository', 'TEXT');
+
+/**
+ * Either identifier is now enough on its own, so the PAN columns have to be nullable.
+ * SQLite cannot drop a NOT NULL constraint, so the table is rebuilt — the standard
+ * twelve-step ALTER, done inside a transaction so a failure leaves the original intact.
+ */
+function relaxPanNotNull(): void {
+  const columns = db.prepare('PRAGMA table_info(pans)').all() as { name: string; notnull: number }[];
+  const pan = columns.find((c) => c.name === 'pan_enc');
+  if (!pan || pan.notnull === 0) return;
+
+  db.exec('PRAGMA foreign_keys=off');
+  db.exec(`
+BEGIN;
+CREATE TABLE pans_rebuilt (
+  id           TEXT PRIMARY KEY,
+  account_id   TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  label        TEXT NOT NULL,
+  pan_enc      TEXT,
+  pan_hash     TEXT,
+  demat_enc    TEXT,
+  demat_hash   TEXT,
+  depository   TEXT,
+  holder_name  TEXT,
+  is_active    INTEGER NOT NULL DEFAULT 1,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (account_id, pan_hash)
+);
+INSERT INTO pans_rebuilt (id, account_id, label, pan_enc, pan_hash, demat_enc, demat_hash, depository, holder_name, is_active, created_at)
+  SELECT id, account_id, label, pan_enc, pan_hash, demat_enc, demat_hash, depository, holder_name, is_active, created_at FROM pans;
+DROP TABLE pans;
+ALTER TABLE pans_rebuilt RENAME TO pans;
+CREATE INDEX IF NOT EXISTS idx_pans_account ON pans(account_id);
+COMMIT;
+`);
+  db.exec('PRAGMA foreign_keys=on');
+  log.info('migrated: pans.pan_enc is now optional (demat-only entries allowed)');
+}
+
+relaxPanNotNull();
 
 addColumnIfMissing('accounts', 'email', 'TEXT');
 addColumnIfMissing('accounts', 'password_hash', 'TEXT');

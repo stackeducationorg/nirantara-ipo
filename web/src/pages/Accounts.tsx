@@ -17,7 +17,7 @@ function AddPan({ onDone }: { onDone: () => void }) {
   const add = useMutation({
     mutationFn: () =>
       api.addPan({
-        pan: pan.toUpperCase(),
+        pan: pan.trim() ? pan.toUpperCase() : undefined,
         label: label.trim() || 'Account',
         demat: demat.trim() ? demat.trim().toUpperCase() : undefined,
       }),
@@ -32,7 +32,12 @@ function AddPan({ onDone }: { onDone: () => void }) {
   const dematClean = demat.replace(/[\s-]/g, '').toUpperCase();
   const dematValid = dematClean === '' || /^IN[0-9]{14}$/.test(dematClean) || /^[0-9]{16}$/.test(dematClean);
   const depository = /^IN[0-9]{14}$/.test(dematClean) ? 'NSDL' : /^[0-9]{16}$/.test(dematClean) ? 'CDSL' : null;
-  const valid = PAN_RE.test(pan.toUpperCase()) && dematValid;
+
+  // Either identifier is enough on its own, so each is only validated when filled in — but
+  // at least one has to be there or there is nothing to look an allotment up by.
+  const panFilled = pan.trim() !== '';
+  const panValid = !panFilled || PAN_RE.test(pan.toUpperCase());
+  const valid = panValid && dematValid && (panFilled || dematClean !== '');
 
   return (
     <form
@@ -45,7 +50,7 @@ function AddPan({ onDone }: { onDone: () => void }) {
     >
       <div className="field">
         <label className="label" htmlFor="pan">
-          PAN number
+          PAN number <span className="faint">(or use a demat number below)</span>
         </label>
         <input
           id="pan"
@@ -77,7 +82,7 @@ function AddPan({ onDone }: { onDone: () => void }) {
         />
         <p className="input-hint">
           {dematClean === ''
-            ? 'Some brokers file applications against the demat account rather than the PAN. Adding it catches those too.'
+            ? 'Either a PAN or a demat number is enough. Adding both catches applications filed against either one.'
             : depository
               ? `Recognised as ${depository}.`
               : 'Must be 16 digits (CDSL) or IN followed by 14 digits (NSDL).'}
@@ -281,15 +286,15 @@ export function Accounts() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="row-title">{pan.label}</div>
                   <div className="row-sub mono">
-                    {pan.pan}
-                    {pan.demat ? ` · ${pan.depository} ${pan.demat}` : ''}
+                    {pan.pan ?? ''}
+                    {pan.demat ? `${pan.pan ? ' · ' : ''}${pan.depository} ${pan.demat}` : ''}
                     {pan.holderName ? ` · ${pan.holderName}` : ''} · added {shortDate(pan.createdAt.slice(0, 10))}
                   </div>
                 </div>
                 <button
                   className="btn danger sm"
                   onClick={() => {
-                    if (confirm(`Remove ${pan.label} (${pan.pan})?`)) remove.mutate(pan.id);
+                    if (confirm(`Remove ${pan.label} (${pan.pan ?? pan.demat})?`)) remove.mutate(pan.id);
                   }}
                 >
                   <IconTrash size={14} /> Remove

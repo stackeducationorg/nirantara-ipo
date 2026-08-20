@@ -106,7 +106,7 @@ export const api = {
   gmpBoard: () => call<Ipo[]>('/ipos/gmp/live'),
 
   pans: () => call<Pan[]>('/pans'),
-  addPan: (body: { pan: string; label: string; holderName?: string; demat?: string }) =>
+  addPan: (body: { pan?: string; label: string; holderName?: string; demat?: string }) =>
     post<Pan>('/pans', body),
   updatePan: (
     id: string,

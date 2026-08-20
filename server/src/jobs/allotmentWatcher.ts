@@ -65,7 +65,10 @@ async function resultsArePublished(ipo: IpoRow): Promise<boolean> {
   const adapter = getRegistrar(ipo.registrar_key);
   if (!adapter || !ipo.registrar_code) return false;
 
-  const pan = db.prepare('SELECT pan_enc FROM pans WHERE is_active = 1 LIMIT 1').get() as
+  // Any saved PAN will do — this only asks the registrar whether results are published.
+  const pan = db
+    .prepare('SELECT pan_enc FROM pans WHERE is_active = 1 AND pan_enc IS NOT NULL LIMIT 1')
+    .get() as
     | { pan_enc: string }
     | undefined;
   if (!pan) return false;

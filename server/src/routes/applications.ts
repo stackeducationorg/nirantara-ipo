@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { decryptPan } from '../util/crypto.js';
-import { maskPan } from '../services/allotment.js';
+import { maskIdentity } from '../services/allotment.js';
 import {
   applyAll,
   listApplications,
@@ -41,8 +41,16 @@ applicationsRouter.get('/ipo/:ipoId', (req, res) => {
   }
 
   const pans = db
-    .prepare('SELECT id, label, pan_enc, holder_name FROM pans WHERE account_id = ? AND is_active = 1 ORDER BY created_at ASC')
-    .all(req.accountId!) as { id: string; label: string; pan_enc: string; holder_name: string | null }[];
+    .prepare(
+      'SELECT id, label, pan_enc, demat_enc, holder_name FROM pans WHERE account_id = ? AND is_active = 1 ORDER BY created_at ASC',
+    )
+    .all(req.accountId!) as {
+    id: string;
+    label: string;
+    pan_enc: string | null;
+    demat_enc: string | null;
+    holder_name: string | null;
+  }[];
 
   const applications = listApplications(req.accountId!, req.params.ipoId);
   const byPan = new Map(applications.map((a) => [a.panId, a]));
@@ -60,7 +68,7 @@ applicationsRouter.get('/ipo/:ipoId', (req, res) => {
     accounts: pans.map((pan) => ({
       panId: pan.id,
       label: pan.label,
-      panMasked: maskPan(decryptPan(pan.pan_enc)),
+      panMasked: maskIdentity(pan.pan_enc, pan.demat_enc),
       holderName: pan.holder_name,
       application: byPan.get(pan.id) ?? null,
     })),

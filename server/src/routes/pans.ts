@@ -34,21 +34,31 @@ const dematField = z
   .optional()
   .refine((v) => v === undefined || v === null || v === '' || parseDemat(v) !== null, DEMAT_HELP);
 
-const createSchema = z.object({
-  pan: z
-    .string()
-    .trim()
-    .transform((s) => s.toUpperCase())
-    .refine((s) => PAN_RE.test(s), 'PAN must look like ABCDE1234F'),
-  label: z.string().trim().min(1).max(40),
-  holderName: z.string().trim().max(80).optional(),
-  demat: dematField,
-});
+/**
+ * Either identifier alone is enough: most registrars can look up an application by PAN or by
+ * demat account, so requiring both would turn away people who only have one to hand.
+ */
+const createSchema = z
+  .object({
+    pan: z
+      .string()
+      .trim()
+      .transform((v) => v.toUpperCase())
+      .refine((v) => v === '' || PAN_RE.test(v), 'PAN must look like ABCDE1234F')
+      .optional(),
+    label: z.string().trim().min(1).max(40),
+    holderName: z.string().trim().max(80).optional(),
+    demat: dematField,
+  })
+  .refine((v) => Boolean(v.pan) || Boolean(v.demat), {
+    message: 'Enter a PAN or a demat number',
+    path: ['pan'],
+  });
 
 interface PanRow {
   id: string;
   label: string;
-  pan_enc: string;
+  pan_enc: string | null;
   demat_enc: string | null;
   depository: string | null;
   holder_name: string | null;
@@ -65,7 +75,7 @@ function serialise(row: PanRow) {
   return {
     id: row.id,
     label: row.label,
-    pan: maskPan(decryptPan(row.pan_enc)),
+    pan: row.pan_enc ? maskPan(decryptPan(row.pan_enc)) : null,
     demat: row.demat_enc ? maskDemat(decryptPan(row.demat_enc)) : null,
     depository: row.depository,
     holderName: row.holder_name,
@@ -90,6 +100,18 @@ pansRouter.post('/', (req, res) => {
   const { pan, label, holderName, demat } = parsed.data;
   const parsedDemat = demat ? parseDemat(demat) : null;
 
+  // pan_hash is UNIQUE per account, but SQLite treats NULLs as distinct, so demat-only
+  // entries need their own duplicate check.
+  if (parsedDemat) {
+    const clash = db
+      .prepare('SELECT id FROM pans WHERE account_id = ? AND demat_hash = ?')
+      .get(req.accountId!, hashPan(parsedDemat.id));
+    if (clash) {
+      res.status(409).json({ error: 'That demat number is already saved on this account' });
+      return;
+    }
+  }
+
   const id = crypto.randomUUID();
   try {
     db.prepare(
@@ -99,8 +121,8 @@ pansRouter.post('/', (req, res) => {
       id,
       req.accountId!,
       label,
-      encryptPan(pan),
-      hashPan(pan),
+      pan ? encryptPan(pan) : null,
+      pan ? hashPan(pan) : null,
       holderName ?? null,
       parsedDemat ? encryptPan(parsedDemat.id) : null,
       parsedDemat ? hashPan(parsedDemat.id) : null,

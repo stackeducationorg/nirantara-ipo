@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { db } from '../db/index.js';
 import { logger } from '../util/logger.js';
 import { decryptPan } from '../util/crypto.js';
-import { maskPan } from './allotment.js';
+import { maskIdentity } from './allotment.js';
 import { getIpo, type IpoRow } from './ipoStore.js';
 
 const log = logger('applications');
@@ -39,7 +39,12 @@ export interface ApplicationRow {
   updated_at: string;
 }
 
-type JoinedRow = ApplicationRow & { label: string; pan_enc: string; holder_name: string | null };
+type JoinedRow = ApplicationRow & {
+  label: string;
+  pan_enc: string | null;
+  demat_enc: string | null;
+  holder_name: string | null;
+};
 
 export interface ApplicationView {
   id: string;
@@ -82,7 +87,7 @@ function toView(row: JoinedRow): ApplicationView {
     ipoId: row.ipo_id,
     panId: row.pan_id,
     label: row.label,
-    panMasked: maskPan(decryptPan(row.pan_enc)),
+    panMasked: maskIdentity(row.pan_enc, row.demat_enc),
     holderName: row.holder_name,
     category: row.category,
     lots: row.lots,
@@ -99,7 +104,7 @@ function toView(row: JoinedRow): ApplicationView {
 }
 
 const SELECT_WITH_PAN = `
-  SELECT a.*, p.label, p.pan_enc, p.holder_name
+  SELECT a.*, p.label, p.pan_enc, p.demat_enc, p.holder_name
   FROM applications a JOIN pans p ON p.id = a.pan_id
 `;
 

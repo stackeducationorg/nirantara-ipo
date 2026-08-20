@@ -48,7 +48,8 @@ export interface Dashboard {
 export interface Pan {
   id: string;
   label: string;
-  pan: string;
+  /** Masked PAN, or null when the entry was saved with only a demat number. */
+  pan: string | null;
   /** Masked demat number, or null when none is saved. */
   demat: string | null;
   depository: 'NSDL' | 'CDSL' | null;

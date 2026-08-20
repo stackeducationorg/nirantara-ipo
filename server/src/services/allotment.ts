@@ -14,7 +14,7 @@ export interface PanRecord {
   id: string;
   account_id: string;
   label: string;
-  pan_enc: string;
+  pan_enc: string | null;
   demat_enc: string | null;
   depository: string | null;
   holder_name: string | null;
@@ -52,6 +52,21 @@ export interface AllotmentSummary {
 export function maskPan(pan: string): string {
   if (pan.length < 10) return '••••••••••';
   return `${pan.slice(0, 3)}••••${pan.slice(-3)}`;
+}
+
+/** Leaves only enough of a demat number visible to tell two accounts apart. */
+export function maskDemat(id: string): string {
+  return id.length < 6 ? '••••••' : `${id.slice(0, 4)}••••••${id.slice(-4)}`;
+}
+
+/**
+ * The masked identifier to show for an applicant. An entry may be saved with a PAN, a demat
+ * account, or both, so this falls back rather than assuming a PAN is present.
+ */
+export function maskIdentity(panEnc: string | null, dematEnc?: string | null): string {
+  if (panEnc) return maskPan(decryptPan(panEnc));
+  if (dematEnc) return maskDemat(decryptPan(dematEnc));
+  return '••••••••••';
 }
 
 /**
@@ -100,8 +115,8 @@ ON CONFLICT(ipo_id, pan_id) DO UPDATE SET
 
 /** Checks a single PAN against the registrar and persists the outcome. */
 async function checkOne(ipo: IpoRow, pan: PanRecord): Promise<AllotmentResult> {
-  const plainPan = decryptPan(pan.pan_enc);
-  const base = { panId: pan.id, label: pan.label, panMasked: maskPan(plainPan) };
+  const plainPan = pan.pan_enc ? decryptPan(pan.pan_enc) : null;
+  const base = { panId: pan.id, label: pan.label, panMasked: maskIdentity(pan.pan_enc, pan.demat_enc) };
   const adapter = getRegistrar(ipo.registrar_key);
 
   let status: AllotmentStatus = 'pending';
@@ -123,30 +138,44 @@ async function checkOne(ipo: IpoRow, pan: PanRecord): Promise<AllotmentResult> {
         ? { depository: pan.depository, id: decryptPan(pan.demat_enc) }
         : null;
 
-    try {
-      let lookup = await adapter.check({ companyCode: ipo.registrar_code, pan: plainPan, demat, by: 'pan' });
+    const canUseDemat = Boolean(demat) && adapter.searchBy.includes('demat');
 
-      if (lookup.status === 'not_applied' && demat && adapter.searchBy.includes('demat')) {
-        const byDemat = await adapter.check({
+    if (!plainPan && !canUseDemat) {
+      // Saved with only a demat account, against a registrar that cannot search by one.
+      status = 'pending';
+      message = `${adapter.name} can only search by PAN — add one to check this entry`;
+    } else {
+      try {
+        // With no PAN there is nothing to try first, so go straight to the demat lookup.
+        let lookup = await adapter.check({
           companyCode: ipo.registrar_code,
-          pan: plainPan,
+          pan: plainPan ?? '',
           demat,
-          by: 'demat',
+          by: plainPan ? 'pan' : 'demat',
         });
-        // Only take the demat answer if it actually found something.
-        if (byDemat.status !== 'not_applied' && byDemat.status !== 'error') lookup = byDemat;
-      }
 
-      status = lookup.status;
-      appliedQty = lookup.appliedQty ?? null;
-      allottedQty = lookup.allottedQty ?? null;
-      nameOnRecord = lookup.nameOnRecord ?? null;
-      message = lookup.message ?? null;
-      raw = lookup.raw ?? null;
-    } catch (err) {
-      status = 'error';
-      message = (err as Error).message;
-      log.warn(`check failed for ${pan.label} on ${ipo.name}: ${message}`);
+        if (plainPan && lookup.status === 'not_applied' && canUseDemat) {
+          const byDemat = await adapter.check({
+            companyCode: ipo.registrar_code,
+            pan: plainPan,
+            demat,
+            by: 'demat',
+          });
+          // Only take the demat answer if it actually found something.
+          if (byDemat.status !== 'not_applied' && byDemat.status !== 'error') lookup = byDemat;
+        }
+
+        status = lookup.status;
+        appliedQty = lookup.appliedQty ?? null;
+        allottedQty = lookup.allottedQty ?? null;
+        nameOnRecord = lookup.nameOnRecord ?? null;
+        message = lookup.message ?? null;
+        raw = lookup.raw ?? null;
+      } catch (err) {
+        status = 'error';
+        message = (err as Error).message;
+        log.warn(`check failed for ${pan.label} on ${ipo.name}: ${message}`);
+      }
     }
   }
 
@@ -245,18 +274,22 @@ export function getStoredSummary(accountId: string, ipoId: string): AllotmentSum
 
   const rows = db
     .prepare(
-      `SELECT r.*, p.label, p.pan_enc
+      `SELECT r.*, p.label, p.pan_enc, p.demat_enc
        FROM allotment_results r JOIN pans p ON p.id = r.pan_id
        WHERE r.account_id = ? AND r.ipo_id = ?`,
     )
-    .all(accountId, ipoId) as (Record<string, unknown> & { label: string; pan_enc: string })[];
+    .all(accountId, ipoId) as (Record<string, unknown> & {
+    label: string;
+    pan_enc: string | null;
+    demat_enc: string | null;
+  })[];
 
   if (rows.length === 0) return null;
 
   const results: AllotmentResult[] = rows.map((row) => ({
     panId: String(row.pan_id),
     label: row.label,
-    panMasked: maskPan(decryptPan(row.pan_enc)),
+    panMasked: maskIdentity(row.pan_enc, row.demat_enc),
     status: row.status as AllotmentStatus,
     appliedQty: (row.applied_qty as number) ?? null,
     allottedQty: (row.allotted_qty as number) ?? null,
