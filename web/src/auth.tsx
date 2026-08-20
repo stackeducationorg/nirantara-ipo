@@ -16,6 +16,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
   pair: (syncKey: string) => Promise<void>;
+  googleSignIn: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login: async (email, password) => adopt(await api.login(email, password)),
       register: async (email, password, name) => adopt(await api.register(email, password, name)),
       pair: async (syncKey) => adopt(await api.pair(syncKey)),
+      googleSignIn: async (idToken) => adopt(await api.google(idToken)),
       logout: async () => {
         await api.logout().catch(() => {});
         clearToken();

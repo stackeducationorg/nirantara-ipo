@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
+import { GoogleButton } from '../components/GoogleButton';
 import { IconAlert, IconArrowLeft } from '../components/Icons';
 
 type Mode = 'signin' | 'signup' | 'pair';
 
 export function SignIn() {
-  const { login, register, pair } = useAuth();
+  const { login, register, pair, googleSignIn } = useAuth();
 
   const [params] = useSearchParams();
   const [mode, setMode] = useState<Mode>(params.get('mode') === 'signup' ? 'signup' : 'signin');
@@ -33,6 +34,18 @@ export function SignIn() {
     }
   };
 
+  const onGoogle = async (idToken: string) => {
+    setError(null);
+    setBusy(true);
+    try {
+      await googleSignIn(idToken);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not sign in with Google.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const heading =
     mode === 'signin'
       ? { title: 'Sign in', sub: 'Track allotments across all your accounts.' }
@@ -50,6 +63,13 @@ export function SignIn() {
           <h1 className="auth-title">{heading.title}</h1>
           <p className="auth-sub">{heading.sub}</p>
         </div>
+
+        {mode !== 'pair' && (
+          <div className="auth-social">
+            <GoogleButton onCredential={onGoogle} disabled={busy} />
+            <div className="auth-divider"><span>or</span></div>
+          </div>
+        )}
 
         <form className="card card-pad" onSubmit={submit}>
           {error && (

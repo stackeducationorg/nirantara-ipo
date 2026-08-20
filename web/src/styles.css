@@ -1052,6 +1052,33 @@ button {
   padding: 0;
 }
 
+/* Google renders its own button, so this only positions it. */
+.auth-social {
+  margin-bottom: 18px;
+}
+
+.google-signin {
+  display: flex;
+  justify-content: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 /* --------------------------------------------------------------- footer */
 
 .footer {

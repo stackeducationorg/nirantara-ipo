@@ -87,6 +87,7 @@ export const api = {
   register: (email: string, password: string, name?: string) =>
     post<AuthResult>('/auth/register', { email, password, name, platform: 'web' }),
   pair: (syncKey: string) => post<AuthResult>('/auth/pair', { syncKey, platform: 'web' }),
+  google: (idToken: string) => post<AuthResult>('/auth/google', { idToken, platform: 'web' }),
   logout: () => post<{ ok: true }>('/auth/logout'),
   changePassword: (currentPassword: string, newPassword: string) =>
     post<{ ok: true }>('/auth/change-password', { currentPassword, newPassword }),
