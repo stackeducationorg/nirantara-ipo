@@ -13,3 +13,8 @@ server/data/
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Expo prebuild output. `npx expo prebuild` regenerates these from app.config.js, so
+# committing them would fork the native project away from the config that produces it.
+mobile/android/
+mobile/ios/
