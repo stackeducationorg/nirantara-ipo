@@ -1086,11 +1086,16 @@ button {
   background: var(--bg-subtle);
   padding: 40px 24px 26px;
   margin-top: auto;
+  /* Anchors and clips the falling-star layer. */
+  position: relative;
+  overflow: hidden;
 }
 
 .footer-inner {
   max-width: 940px;
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 .footer-cols {
@@ -1144,6 +1149,89 @@ button {
 
 .footer-credit a:hover {
   color: var(--accent);
+}
+
+/* ------------------------------------------------------- falling stars */
+
+/* Full-bleed layer behind footer content. The footer clips it, so stars appear to fall
+   out of the top edge and fade before the bottom. */
+.stars {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.star {
+  position: absolute;
+  display: block;
+  /* Five-point star. Drawn with clip-path so there is no image to load and the shape
+     scales cleanly with the inline width/height. */
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 91%,
+    50% 70%,
+    21% 91%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+  opacity: 0;
+  animation-name: star-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: top, transform, opacity;
+}
+
+/* The app footer is a pale surface, so the star carries the palette blue. */
+.stars-app .star {
+  background: linear-gradient(160deg, #7ba9f5, var(--info));
+  filter: drop-shadow(0 0 5px rgba(37, 99, 201, 0.45));
+}
+
+[data-theme='dark'] .stars-app .star {
+  background: linear-gradient(160deg, #a9c9ff, #4f8ae8);
+  filter: drop-shadow(0 0 6px rgba(120, 170, 255, 0.5));
+}
+
+/* The landing plate is already deep blue — a blue star would disappear into it, so these
+   are near-white and read as ice. */
+.stars-plate .star {
+  background: linear-gradient(160deg, #ffffff, #bcd4ff);
+  filter: drop-shadow(0 0 6px rgba(190, 215, 255, 0.75));
+}
+
+@keyframes star-fall {
+  0% {
+    top: -6%;
+    transform: translateX(0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.95;
+  }
+  85% {
+    opacity: 0.65;
+  }
+  100% {
+    /* Percentage top resolves against the footer, so the same keyframe works on the
+       short app footer and the tall landing plate. translateX adds a sideways drift
+       so the fall does not read as a straight drop. */
+    top: 104%;
+    transform: translateX(18px) rotate(300deg);
+    opacity: 0;
+  }
+}
+
+/* Decorative only — no reason to animate for anyone who asked the OS not to. */
+@media (prefers-reduced-motion: reduce) {
+  .stars {
+    display: none;
+  }
 }
 
 /* -------------------------------------------------------------- mobile */

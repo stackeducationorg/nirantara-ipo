@@ -4,6 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { useThemeMode, type ThemeMode } from '../theme';
+import { FallingStars } from './FallingStars';
 import { Logo } from './IpoCard';
 import {
   IconBell,
@@ -185,6 +186,7 @@ function Footer() {
 
   return (
     <footer className="footer">
+      <FallingStars />
       <div className="footer-inner">
         <div className="footer-cols">
           <div className="footer-col">

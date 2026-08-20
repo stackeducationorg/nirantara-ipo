@@ -13,6 +13,7 @@ import {
   IconTrend,
   IconWallet,
 } from '../components/Icons';
+import { FallingStars } from '../components/FallingStars';
 import { HeroCard } from '../components/HeroCard';
 import { gmpText, gmpTone } from '../format';
 import { useThemeMode } from '../theme';
@@ -376,6 +377,7 @@ export function Landing() {
       </section>
 
       <footer className="lp-plate">
+        <FallingStars tone="plate" />
         <div className="lp-plate-inner">
           <p className="lp-plate-statement">
             Every IPO. Every account.
