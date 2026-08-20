@@ -14,8 +14,8 @@
         "simulator": true
       },
       "env": {
-        "//": "This machine's Wi-Fi address. Re-check with ipconfig if the network changes.",
-        "EXPO_PUBLIC_API_BASE": "http://172.20.10.3:4000/api"
+        "//": "The deployed API. Point this at a LAN address only when testing against a dev server.",
+        "EXPO_PUBLIC_API_BASE": "https://api.nirantara.cloud/api"
       }
     },
     "device": {
@@ -28,7 +28,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://api.example.com/api"
+        "EXPO_PUBLIC_API_BASE": "https://api.nirantara.cloud/api"
       }
     },
     "production": {
@@ -38,7 +38,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://api.example.com/api"
+        "EXPO_PUBLIC_API_BASE": "https://api.nirantara.cloud/api"
       }
     }
   },
