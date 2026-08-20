@@ -95,7 +95,8 @@ iposRouter.get('/gmp/live', (_req, res) => {
   const rows = db
     .prepare(
       `SELECT i.* FROM ipos i
-       WHERE i.status IN ('open', 'upcoming', 'closed', 'allotment')`,
+       WHERE i.status IN ('open', 'upcoming', 'closed', 'allotment')
+         AND i.ig_id NOT IN (SELECT ig_id FROM hidden_ipos)`,
     )
     .all() as IpoRow[];
 

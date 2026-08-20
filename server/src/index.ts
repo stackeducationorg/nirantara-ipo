@@ -9,6 +9,7 @@ import { startJobs, runAllotmentWatch, runIpoSync } from './jobs/index.js';
 import { closeBrowser } from './registrars/browser.js';
 import { allotmentRouter } from './routes/allotment.js';
 import { applicationsRouter } from './routes/applications.js';
+import { hideIpo, listHiddenIpos, unhideIpo } from './services/ipoStore.js';
 import { appVersionRouter } from './routes/appVersion.js';
 import { authRouter } from './routes/auth.js';
 import { iposRouter } from './routes/ipos.js';
@@ -56,15 +57,47 @@ app.use('/api/applications', applicationsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/watchlist', watchlistRouter);
 
+/** Shared secret guard for the admin routes. 404 rather than 401, so their existence is not advertised. */
+function requireAdmin(req: express.Request, res: express.Response): boolean {
+  if (!config.adminToken || req.header('x-admin-token') !== config.adminToken) {
+    res.status(404).json({ error: 'Not found' });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Issues kept out of every list. Keyed on the upstream ig_id, so a hide survives the row
+ * being re-synced from InvestorGain rather than quietly reappearing a few hours later.
+ */
+app.get('/api/admin/hidden', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json(listHiddenIpos());
+});
+
+app.post('/api/admin/hidden/:igId', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const igId = Number(req.params.igId);
+  if (!Number.isInteger(igId)) {
+    res.status(400).json({ error: 'igId must be a number' });
+    return;
+  }
+  hideIpo(igId, typeof req.body?.name === 'string' ? req.body.name : undefined);
+  res.json({ ok: true, hidden: listHiddenIpos() });
+});
+
+app.delete('/api/admin/hidden/:igId', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const removed = unhideIpo(Number(req.params.igId));
+  res.json({ ok: removed, hidden: listHiddenIpos() });
+});
+
 /**
  * Manual job triggers for an external scheduler. Guarded by a shared secret so they cannot be
  * used to hammer the registrars from the open internet; disabled entirely when unset.
  */
 app.post('/api/admin/:job', async (req, res) => {
-  if (!config.adminToken || req.header('x-admin-token') !== config.adminToken) {
-    res.status(404).json({ error: 'Not found' });
-    return;
-  }
+  if (!requireAdmin(req, res)) return;
 
   const jobs: Record<string, () => Promise<void>> = {
     sync: runIpoSync,

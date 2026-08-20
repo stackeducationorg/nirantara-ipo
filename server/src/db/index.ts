@@ -181,6 +181,14 @@ CREATE TABLE IF NOT EXISTS applications (
 );
 CREATE INDEX IF NOT EXISTS idx_applications_account ON applications(account_id, ipo_id);
 CREATE INDEX IF NOT EXISTS idx_applications_refund ON applications(account_id, refund_status);
+
+-- Issues deliberately kept out of the app. Keyed on the upstream ig_id rather than our own
+-- row id, so a hide survives the row being deleted and re-synced from InvestorGain.
+CREATE TABLE IF NOT EXISTS hidden_ipos (
+  ig_id     INTEGER PRIMARY KEY,
+  name      TEXT,
+  hidden_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 /**

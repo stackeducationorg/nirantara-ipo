@@ -225,6 +225,10 @@ export function listIpos(filter?: { status?: IpoStatus; category?: string }): Ip
     params.push(filter.category);
   }
 
+  // Hidden issues are excluded from every list. Fetching one directly by id still works,
+  // so an account that already has an application against it keeps seeing its own records.
+  clauses.push('ig_id NOT IN (SELECT ig_id FROM hidden_ipos)');
+
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   return db
     .prepare(
@@ -251,4 +255,21 @@ export function latestGmp(ipoId: string) {
        FROM gmp_history WHERE ipo_id = ? ORDER BY captured_at DESC LIMIT 1`,
     )
     .get(ipoId) as { gmp: number; gmp_percent: number | null; est_listing: number | null; captured_at: string } | undefined;
+}
+
+/** Keeps an issue out of every list, permanently and across re-syncs. */
+export function hideIpo(igId: number, name?: string): void {
+  db.prepare('INSERT OR REPLACE INTO hidden_ipos (ig_id, name) VALUES (?, ?)').run(igId, name ?? null);
+}
+
+export function unhideIpo(igId: number): boolean {
+  return db.prepare('DELETE FROM hidden_ipos WHERE ig_id = ?').run(igId).changes > 0;
+}
+
+export function listHiddenIpos(): { ig_id: number; name: string | null; hidden_at: string }[] {
+  return db.prepare('SELECT * FROM hidden_ipos ORDER BY hidden_at DESC').all() as {
+    ig_id: number;
+    name: string | null;
+    hidden_at: string;
+  }[];
 }
