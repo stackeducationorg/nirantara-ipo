@@ -38,6 +38,18 @@ export const config = {
   /** Shared secret for /api/admin/* job triggers. Unset disables those routes entirely. */
   adminToken: optional('ADMIN_TOKEN'),
 
+  /**
+   * Mobile release gate. minVersion is the oldest build still permitted to run; raise it
+   * only when an older client would actually misbehave, since it locks people out until
+   * they install a new APK.
+   */
+  app: {
+    minVersion: optional('APP_MIN_VERSION', '1.0.0'),
+    latestVersion: optional('APP_LATEST_VERSION', '1.0.0'),
+    downloadUrl: optional('APP_DOWNLOAD_URL', 'https://www.nirantara.cloud/download'),
+    updateMessage: optional('APP_UPDATE_MESSAGE', ''),
+  },
+
   // Google Sign-In. Empty disables the endpoint entirely rather than accepting
   // unverifiable tokens, so a missing value fails closed.
   googleClientId: optional('GOOGLE_CLIENT_ID'),

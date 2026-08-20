@@ -11,7 +11,8 @@ import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UpdateGate } from './src/UpdateGate';
 import { AuthProvider, useAuth } from './src/auth';
 import {
   IconBell,
@@ -67,15 +68,25 @@ function ThemeButton() {
 
 function Tabs() {
   const t = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
+      // Every tab screen hides its own header, so without this nothing holds the content
+      // clear of the status bar and notch — the first row renders underneath them.
+      sceneContainerStyle={{ backgroundColor: t.bg, paddingTop: insets.top }}
       screenOptions={({ route }) => ({
         headerStyle: { backgroundColor: t.bg },
         headerTitleStyle: { color: t.text, fontSize: 16 },
         headerShadowVisible: false,
         headerRight: () => <ThemeButton />,
-        tabBarStyle: { backgroundColor: t.bg, borderTopColor: t.border },
+        tabBarStyle: {
+          backgroundColor: t.bg,
+          borderTopColor: t.border,
+          // Gesture-navigation devices draw a home indicator over the bottom of the screen.
+          height: 56 + insets.bottom,
+          paddingBottom: insets.bottom,
+        },
         tabBarActiveTintColor: t.accent,
         tabBarInactiveTintColor: t.textFaint,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
@@ -146,6 +157,7 @@ function Navigation() {
 function Gate() {
   const { account, loading } = useAuth();
   const t = useTheme();
+  const insets = useSafeAreaInsets();
 
   // Hold the first paint until the stored session resolves, so sign-in never flashes for an
   // already-authenticated user.
@@ -157,7 +169,14 @@ function Gate() {
     );
   }
 
-  return account ? <Navigation /> : <SignInScreen />;
+  // Sign-in sits outside the navigator, so it has to hold itself clear of the status bar.
+  return account ? (
+    <Navigation />
+  ) : (
+    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+      <SignInScreen />
+    </View>
+  );
 }
 
 export default function App() {
@@ -166,7 +185,9 @@ export default function App() {
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <Gate />
+            <UpdateGate>
+              <Gate />
+            </UpdateGate>
           </AuthProvider>
         </QueryClientProvider>
       </ThemeProvider>

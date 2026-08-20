@@ -9,6 +9,7 @@ import { startJobs, runAllotmentWatch, runIpoSync } from './jobs/index.js';
 import { closeBrowser } from './registrars/browser.js';
 import { allotmentRouter } from './routes/allotment.js';
 import { applicationsRouter } from './routes/applications.js';
+import { appVersionRouter } from './routes/appVersion.js';
 import { authRouter } from './routes/auth.js';
 import { iposRouter } from './routes/ipos.js';
 import { mediaRouter } from './routes/media.js';
@@ -45,6 +46,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, ipos: ipos.n, time: new Date().toISOString() });
 });
 
+app.use('/api/app', appVersionRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/ipos', iposRouter);
 app.use('/api/media', mediaRouter);
