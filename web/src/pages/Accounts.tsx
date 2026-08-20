@@ -12,16 +12,27 @@ function AddPan({ onDone }: { onDone: () => void }) {
   const queryClient = useQueryClient();
   const [pan, setPan] = useState('');
   const [label, setLabel] = useState('');
+  const [demat, setDemat] = useState('');
 
   const add = useMutation({
-    mutationFn: () => api.addPan({ pan: pan.toUpperCase(), label: label.trim() || 'Account' }),
+    mutationFn: () =>
+      api.addPan({
+        pan: pan.toUpperCase(),
+        label: label.trim() || 'Account',
+        demat: demat.trim() ? demat.trim().toUpperCase() : undefined,
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['pans'] });
       onDone();
     },
   });
 
-  const valid = PAN_RE.test(pan.toUpperCase());
+  // NSDL numbers are "IN" plus 14 digits; CDSL numbers are 16 digits. The depository is
+  // inferred from the shape, so there is nothing for the user to choose.
+  const dematClean = demat.replace(/[\s-]/g, '').toUpperCase();
+  const dematValid = dematClean === '' || /^IN[0-9]{14}$/.test(dematClean) || /^[0-9]{16}$/.test(dematClean);
+  const depository = /^IN[0-9]{14}$/.test(dematClean) ? 'NSDL' : /^[0-9]{16}$/.test(dematClean) ? 'CDSL' : null;
+  const valid = PAN_RE.test(pan.toUpperCase()) && dematValid;
 
   return (
     <form
@@ -47,6 +58,30 @@ function AddPan({ onDone }: { onDone: () => void }) {
           onChange={(e) => setPan(e.target.value.toUpperCase())}
           style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
         />
+      </div>
+
+      <div className="field">
+        <label className="label" htmlFor="demat">
+          Demat number <span className="faint">(optional)</span>
+        </label>
+        <input
+          id="demat"
+          className="input mono"
+          placeholder="IN30012345678901 or 1234567890123456"
+          maxLength={20}
+          autoComplete="off"
+          spellCheck={false}
+          value={demat}
+          onChange={(e) => setDemat(e.target.value.toUpperCase())}
+          style={{ textTransform: 'uppercase', letterSpacing: '0.03em' }}
+        />
+        <p className="input-hint">
+          {dematClean === ''
+            ? 'Some brokers file applications against the demat account rather than the PAN. Adding it catches those too.'
+            : depository
+              ? `Recognised as ${depository}.`
+              : 'Must be 16 digits (CDSL) or IN followed by 14 digits (NSDL).'}
+        </p>
       </div>
 
       <div className="field">
@@ -247,6 +282,7 @@ export function Accounts() {
                   <div className="row-title">{pan.label}</div>
                   <div className="row-sub mono">
                     {pan.pan}
+                    {pan.demat ? ` · ${pan.depository} ${pan.demat}` : ''}
                     {pan.holderName ? ` · ${pan.holderName}` : ''} · added {shortDate(pan.createdAt.slice(0, 10))}
                   </div>
                 </div>

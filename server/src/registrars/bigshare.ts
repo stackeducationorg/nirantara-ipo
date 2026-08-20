@@ -36,18 +36,25 @@ async function listCompanies(): Promise<RegistrarCompany[]> {
     });
 }
 
-async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLookup> {
+async function check({ companyCode, pan, demat, by }: AllotmentQuery): Promise<AllotmentLookup> {
+  const useDemat = by === 'demat';
+  if (useDemat && !demat) throw new RegistrarError('No demat account on file for this applicant');
+
+  // Bigshare keeps CDSL in one field but splits NSDL into the 8-character DP ID and the
+  // 8-digit client id, so the stored "IN..." value is cut in half here.
+  const nsdl = useDemat && demat!.depository === 'NSDL';
+
   // The on-page captcha is generated in JS and stored in sessionStorage — it is never sent to
-  // or verified by the server, so the page method accepts a direct PAN lookup.
+  // or verified by the server, so the page method accepts a direct lookup.
   const payload = {
     Applicationno: '',
     Company: companyCode,
-    SelectionType: 'PN',
-    PanNo: pan,
-    txtcsdl: '',
-    txtDPID: '',
-    txtClId: '',
-    ddlType: '0',
+    SelectionType: useDemat ? 'BN' : 'PN',
+    PanNo: useDemat ? '' : pan,
+    txtcsdl: useDemat && demat!.depository === 'CDSL' ? demat!.id : '',
+    txtDPID: nsdl ? demat!.id.slice(0, 8) : '',
+    txtClId: nsdl ? demat!.id.slice(8) : '',
+    ddlType: useDemat ? demat!.depository : '0',
     lang: 'en',
   };
 
@@ -61,7 +68,7 @@ async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLoo
 
   const dpid = (d.DPID ?? '').trim();
   if (!dpid || /no data found/i.test(dpid)) {
-    return { status: 'not_applied', message: 'No application found for this PAN', raw: d };
+    return { status: 'not_applied', message: 'No application found', raw: d };
   }
 
   const applied = toInt(d.APPLIED);
@@ -82,6 +89,7 @@ export const bigshare: RegistrarAdapter = {
   name: 'Bigshare Services',
   driver: 'http',
   match: ['bigshare'],
+  searchBy: ['pan', 'demat'],
   listCompanies,
   check,
 };

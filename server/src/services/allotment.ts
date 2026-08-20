@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { db } from '../db/index.js';
 import { getRegistrar, resolveRegistrar } from '../registrars/index.js';
-import type { AllotmentStatus } from '../registrars/types.js';
+import type { AllotmentStatus, DematAccount } from '../registrars/types.js';
 import { decryptPan } from '../util/crypto.js';
 import { mapLimit } from '../util/http.js';
 import { logger } from '../util/logger.js';
@@ -15,6 +15,8 @@ export interface PanRecord {
   account_id: string;
   label: string;
   pan_enc: string;
+  demat_enc: string | null;
+  depository: string | null;
   holder_name: string | null;
 }
 
@@ -113,8 +115,28 @@ async function checkOne(ipo: IpoRow, pan: PanRecord): Promise<AllotmentResult> {
     status = 'pending';
     message = 'Registrar has not opened allotment lookup for this IPO yet';
   } else {
+    // A demat account is a second way to reach the same application. Some registrars index
+    // applications made through a broker by demat id and return nothing for the PAN, so a
+    // PAN miss is retried by demat rather than reported as "not applied".
+    const demat: DematAccount | null =
+      pan.demat_enc && (pan.depository === 'NSDL' || pan.depository === 'CDSL')
+        ? { depository: pan.depository, id: decryptPan(pan.demat_enc) }
+        : null;
+
     try {
-      const lookup = await adapter.check({ companyCode: ipo.registrar_code, pan: plainPan });
+      let lookup = await adapter.check({ companyCode: ipo.registrar_code, pan: plainPan, demat, by: 'pan' });
+
+      if (lookup.status === 'not_applied' && demat && adapter.searchBy.includes('demat')) {
+        const byDemat = await adapter.check({
+          companyCode: ipo.registrar_code,
+          pan: plainPan,
+          demat,
+          by: 'demat',
+        });
+        // Only take the demat answer if it actually found something.
+        if (byDemat.status !== 'not_applied' && byDemat.status !== 'error') lookup = byDemat;
+      }
+
       status = lookup.status;
       appliedQty = lookup.appliedQty ?? null;
       allottedQty = lookup.allottedQty ?? null;
@@ -185,7 +207,9 @@ function summarise(ipo: IpoRow, results: AllotmentResult[]): AllotmentSummary {
 
 export function getPans(accountId: string): PanRecord[] {
   return db
-    .prepare('SELECT id, account_id, label, pan_enc, holder_name FROM pans WHERE account_id = ? AND is_active = 1')
+    .prepare(
+      'SELECT id, account_id, label, pan_enc, demat_enc, depository, holder_name FROM pans WHERE account_id = ? AND is_active = 1',
+    )
     .all(accountId) as PanRecord[];
 }
 

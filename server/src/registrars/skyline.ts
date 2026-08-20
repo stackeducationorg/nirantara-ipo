@@ -66,7 +66,7 @@ export function parseSkylineResult(html: string): AllotmentLookup {
   const text = $('body').text().replace(/\s+/g, ' ');
 
   if (/no record found|no records found|not found/i.test(text)) {
-    return { status: 'not_applied', message: 'No application found for this PAN' };
+    return { status: 'not_applied', message: 'No application found' };
   }
 
   const cells: string[] = [];
@@ -100,7 +100,10 @@ export function parseSkylineResult(html: string): AllotmentLookup {
   };
 }
 
-async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLookup> {
+async function check({ companyCode, pan, demat, by }: AllotmentQuery): Promise<AllotmentLookup> {
+  const useDemat = by === 'demat';
+  if (useDemat && !demat) throw new RegistrarError('No demat account on file for this applicant');
+
   const landing = await request(SITE, { timeoutMs: 25_000 });
   const cookie = cookiesFrom(landing);
   await landing.text();
@@ -115,7 +118,15 @@ async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLoo
   if (!csrf) throw new RegistrarError('Skyline did not issue a CSRF token');
 
   const result = await post(
-    { company: companyCode, client_id: '', application_no: '', pan, csrf_token: csrf, action },
+    {
+      company: companyCode,
+      // Skyline's own form calls the demat field client_id.
+      client_id: useDemat ? demat!.id : '',
+      application_no: '',
+      pan: useDemat ? '' : pan,
+      csrf_token: csrf,
+      action,
+    },
     cookie,
     FORM,
   );
@@ -129,6 +140,7 @@ export const skyline: RegistrarAdapter = {
   name: 'Skyline Financial Services',
   driver: 'http',
   match: ['skyline'],
+  searchBy: ['pan', 'demat'],
   listCompanies,
   check,
 };

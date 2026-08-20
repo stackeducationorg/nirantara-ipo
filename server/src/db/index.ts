@@ -193,6 +193,12 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
   log.info(`migrated: ${table}.${column} added`);
 }
 
+// A demat account is an alternative way to look up the same application, so it lives on the
+// applicant's row rather than in a table of its own. Encrypted like the PAN.
+addColumnIfMissing('pans', 'demat_enc', 'TEXT');
+addColumnIfMissing('pans', 'demat_hash', 'TEXT');
+addColumnIfMissing('pans', 'depository', 'TEXT');
+
 addColumnIfMissing('accounts', 'email', 'TEXT');
 addColumnIfMissing('accounts', 'password_hash', 'TEXT');
 addColumnIfMissing('accounts', 'name', 'TEXT');

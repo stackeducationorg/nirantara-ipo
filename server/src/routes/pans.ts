@@ -13,6 +13,27 @@ pansRouter.use(requireAuth);
 /** Structure of an Indian PAN: 5 letters, 4 digits, 1 letter. */
 const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
+/**
+ * A demat account number identifies its depository by shape, so the user is not asked to
+ * pick one: NSDL is "IN" plus 14 digits, CDSL is a bare 16 digits.
+ */
+function parseDemat(input: string): { id: string; depository: 'NSDL' | 'CDSL' } | null {
+  const value = input.replace(/[\s-]/g, '').toUpperCase();
+  if (/^IN[0-9]{14}$/.test(value)) return { id: value, depository: 'NSDL' };
+  if (/^[0-9]{16}$/.test(value)) return { id: value, depository: 'CDSL' };
+  return null;
+}
+
+const DEMAT_HELP = 'Demat number must be 16 digits (CDSL) or IN followed by 14 digits (NSDL)';
+
+const dematField = z
+  .string()
+  .trim()
+  .max(24)
+  .nullable()
+  .optional()
+  .refine((v) => v === undefined || v === null || v === '' || parseDemat(v) !== null, DEMAT_HELP);
+
 const createSchema = z.object({
   pan: z
     .string()
@@ -21,15 +42,23 @@ const createSchema = z.object({
     .refine((s) => PAN_RE.test(s), 'PAN must look like ABCDE1234F'),
   label: z.string().trim().min(1).max(40),
   holderName: z.string().trim().max(80).optional(),
+  demat: dematField,
 });
 
 interface PanRow {
   id: string;
   label: string;
   pan_enc: string;
+  demat_enc: string | null;
+  depository: string | null;
   holder_name: string | null;
   is_active: number;
   created_at: string;
+}
+
+/** Leaves only enough of a demat number visible to tell two accounts apart. */
+function maskDemat(id: string): string {
+  return id.length < 6 ? '••••••' : `${id.slice(0, 4)}••••••${id.slice(-4)}`;
 }
 
 function serialise(row: PanRow) {
@@ -37,6 +66,8 @@ function serialise(row: PanRow) {
     id: row.id,
     label: row.label,
     pan: maskPan(decryptPan(row.pan_enc)),
+    demat: row.demat_enc ? maskDemat(decryptPan(row.demat_enc)) : null,
+    depository: row.depository,
     holderName: row.holder_name,
     isActive: Boolean(row.is_active),
     createdAt: row.created_at,
@@ -56,14 +87,25 @@ pansRouter.post('/', (req, res) => {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid payload' });
     return;
   }
-  const { pan, label, holderName } = parsed.data;
+  const { pan, label, holderName, demat } = parsed.data;
+  const parsedDemat = demat ? parseDemat(demat) : null;
 
   const id = crypto.randomUUID();
   try {
     db.prepare(
-      `INSERT INTO pans (id, account_id, label, pan_enc, pan_hash, holder_name)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(id, req.accountId!, label, encryptPan(pan), hashPan(pan), holderName ?? null);
+      `INSERT INTO pans (id, account_id, label, pan_enc, pan_hash, holder_name, demat_enc, demat_hash, depository)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      id,
+      req.accountId!,
+      label,
+      encryptPan(pan),
+      hashPan(pan),
+      holderName ?? null,
+      parsedDemat ? encryptPan(parsedDemat.id) : null,
+      parsedDemat ? hashPan(parsedDemat.id) : null,
+      parsedDemat ? parsedDemat.depository : null,
+    );
   } catch (err) {
     // The (account_id, pan_hash) unique index is what stops the same PAN being added twice.
     if ((err as { code?: string }).code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -81,6 +123,7 @@ const patchSchema = z.object({
   label: z.string().trim().min(1).max(40).optional(),
   holderName: z.string().trim().max(80).nullable().optional(),
   isActive: z.boolean().optional(),
+  demat: dematField,
 });
 
 pansRouter.patch('/:id', (req, res) => {
@@ -98,18 +141,30 @@ pansRouter.patch('/:id', (req, res) => {
     return;
   }
 
-  const { label, holderName, isActive } = parsed.data;
+  const { label, holderName, isActive, demat } = parsed.data;
+  // An empty string clears the demat account; omitting the field leaves it untouched.
+  const parsedDemat = demat ? parseDemat(demat) : null;
+
   db.prepare(
     `UPDATE pans SET
        label       = COALESCE(?, label),
        holder_name = CASE WHEN ? THEN ? ELSE holder_name END,
-       is_active   = COALESCE(?, is_active)
+       is_active   = COALESCE(?, is_active),
+       demat_enc   = CASE WHEN ? THEN ? ELSE demat_enc END,
+       demat_hash  = CASE WHEN ? THEN ? ELSE demat_hash END,
+       depository  = CASE WHEN ? THEN ? ELSE depository END
      WHERE id = ?`,
   ).run(
     label ?? null,
     holderName !== undefined ? 1 : 0,
     holderName ?? null,
     isActive === undefined ? null : isActive ? 1 : 0,
+    demat !== undefined ? 1 : 0,
+    parsedDemat ? encryptPan(parsedDemat.id) : null,
+    demat !== undefined ? 1 : 0,
+    parsedDemat ? hashPan(parsedDemat.id) : null,
+    demat !== undefined ? 1 : 0,
+    parsedDemat ? parsedDemat.depository : null,
     row.id,
   );
 

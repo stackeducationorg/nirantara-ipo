@@ -70,8 +70,15 @@ export function parseMaashitlaRecord(record: Record<string, unknown>): Allotment
   };
 }
 
-async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLookup> {
-  const url = `${API}/search?${new URLSearchParams({ company_name: companyCode, pan })}`;
+async function check({ companyCode, pan, demat, by }: AllotmentQuery): Promise<AllotmentLookup> {
+  const useDemat = by === 'demat';
+  if (useDemat && !demat) throw new RegistrarError('No demat account on file for this applicant');
+
+  // The API insists on exactly one of pan, application_no or dpid_client_id.
+  const query: Record<string, string> = useDemat
+    ? { company_name: companyCode, dpid_client_id: demat!.id }
+    : { company_name: companyCode, pan };
+  const url = `${API}/search?${new URLSearchParams(query)}`;
   const res = await request(url, {
     headers: { Accept: 'application/json', Referer: SITE, Origin: 'https://maashitla.com' },
     timeoutMs: 25_000,
@@ -80,7 +87,7 @@ async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLoo
 
   // A PAN with no application is answered with 404 {"detail":"No records found."}.
   if (res.status === 404) {
-    return { status: 'not_applied', message: 'No application found for this PAN' };
+    return { status: 'not_applied', message: 'No application found' };
   }
   if (!res.ok) {
     throw new RegistrarError(`Maashitla lookup failed: HTTP ${res.status}`);
@@ -94,7 +101,7 @@ async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLoo
   }
 
   const record = (Array.isArray(json) ? json[0] : json) as Record<string, unknown> | undefined;
-  if (!record) return { status: 'not_applied', message: 'No application found for this PAN' };
+  if (!record) return { status: 'not_applied', message: 'No application found' };
 
   return parseMaashitlaRecord(record);
 }
@@ -104,6 +111,7 @@ export const maashitla: RegistrarAdapter = {
   name: 'Maashitla Securities',
   driver: 'http',
   match: ['maashitla'],
+  searchBy: ['pan', 'demat'],
   listCompanies,
   check,
 };

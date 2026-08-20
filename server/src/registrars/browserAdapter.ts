@@ -119,6 +119,8 @@ export function createBrowserAdapter(profile: BrowserProfile): RegistrarAdapter 
   return {
     key: profile.key,
     name: profile.name,
+    // Selector profiles drive the PAN field only.
+    searchBy: ['pan'],
     driver: 'browser',
     match: profile.match,
 

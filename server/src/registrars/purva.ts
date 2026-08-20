@@ -142,6 +142,8 @@ export const purva: RegistrarAdapter = {
   name: 'Purva Sharegistry',
   driver: 'http',
   match: ['purva'],
+  // Purva's form offers only an application number and a PAN — there is no demat field.
+  searchBy: ['pan'],
   listCompanies,
   check,
 };

@@ -49,6 +49,9 @@ export interface Pan {
   id: string;
   label: string;
   pan: string;
+  /** Masked demat number, or null when none is saved. */
+  demat: string | null;
+  depository: 'NSDL' | 'CDSL' | null;
   holderName: string | null;
   isActive: boolean;
   createdAt: string;

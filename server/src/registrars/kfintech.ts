@@ -9,10 +9,11 @@ const log = logger('kfintech');
 const SITE = 'https://ipostatus.kfintech.com/';
 /**
  * KFin's allotment front-end is a React app talking to an unauthenticated API Gateway lambda.
- * The lookup takes no captcha, no cookie and no token — the PAN and the issue's client id are
- * passed as request *headers*, which is why this looks nothing like the old WebForms flow.
+ * The lookup takes no captcha, no cookie and no token — the identifier and the issue's client
+ * id are passed as request *headers*, which is why this looks nothing like the old WebForms
+ * flow. `type` selects the identifier: `pan` or `dpclid` for a demat account.
  */
-const API = 'https://0uz601ms56.execute-api.ap-south-1.amazonaws.com/prod/api/query?type=pan';
+const API_BASE = 'https://0uz601ms56.execute-api.ap-south-1.amazonaws.com/prod/api/query?type=';
 
 interface KfinResponse {
   error?: string;
@@ -110,17 +111,30 @@ export function parseKfinRecord(record: Record<string, unknown>, companyCode = '
   };
 }
 
-async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLookup> {
+async function check({ companyCode, pan, demat, by }: AllotmentQuery): Promise<AllotmentLookup> {
   let json: KfinResponse;
 
+  const useDemat = by === 'demat';
+  if (useDemat && !demat) throw new RegistrarError('No demat account on file for this applicant');
+
+  // KFin's front-end sends type=dpclid for a demat lookup, with CDSL ids passed as their bare
+  // 16 digits and NSDL ids prefixed "IN" (the prefix is added by the page, not typed by the
+  // user). Stored ids already carry it, so only a missing prefix is repaired here.
+  const type = useDemat ? 'dpclid' : 'pan';
+  const reqparam = useDemat
+    ? demat!.depository === 'NSDL' && !demat!.id.toUpperCase().startsWith('IN')
+      ? `IN${demat!.id}`
+      : demat!.id
+    : pan;
+
   try {
-    json = await getJson<KfinResponse>(API, {
+    json = await getJson<KfinResponse>(`${API_BASE}${type}`, {
       headers: {
         Accept: 'application/json, text/plain, */*',
         Referer: SITE,
         Origin: 'https://ipostatus.kfintech.com',
         // The two values that actually identify the query.
-        reqparam: pan,
+        reqparam,
         client_id: companyCode,
       },
       timeoutMs: 25_000,
@@ -129,14 +143,14 @@ async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLoo
     // A 404 with {"error":"Record Not Found"} is the normal "no application" answer.
     const body = (err as { body?: string }).body ?? '';
     if (/record not found/i.test(body)) {
-      return { status: 'not_applied', message: 'No application found for this PAN', raw: body };
+      return { status: 'not_applied', message: 'No application found', raw: body };
     }
     throw new RegistrarError(`KFin lookup failed: ${(err as Error).message}`);
   }
 
   if (json.error) {
     if (/not found/i.test(json.error)) {
-      return { status: 'not_applied', message: 'No application found for this PAN', raw: json };
+      return { status: 'not_applied', message: 'No application found', raw: json };
     }
     throw new RegistrarError(`KFin: ${json.error}`);
   }
@@ -149,9 +163,9 @@ async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLoo
 export const kfintech: RegistrarAdapter = {
   key: 'kfintech',
   name: 'KFin Technologies',
-  // Lookups are pure HTTP; only the cached issue list touches a browser.
   driver: 'http',
   match: ['kfintech', 'kfin', 'karvy', 'kosmic'],
+  searchBy: ['pan', 'demat'],
   listCompanies,
   check,
 };

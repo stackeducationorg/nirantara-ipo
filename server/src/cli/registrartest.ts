@@ -12,6 +12,9 @@ import type { RegistrarAdapter } from '../registrars/types.js';
 
 // Structurally valid but unissued, so no real investor's data is ever fetched.
 const DUMMY_PAN = 'AAAPZ1234C';
+// All-nines demat numbers: the right shape for each depository, and not allocatable.
+const DUMMY_NSDL = { depository: 'NSDL' as const, id: 'IN99999999999999' };
+const DUMMY_CDSL = { depository: 'CDSL' as const, id: '9999999999999999' };
 
 let failures = 0;
 let warnings = 0;
@@ -60,6 +63,30 @@ async function exercise(adapter: RegistrarAdapter) {
     }
   } catch (err) {
     fail('check', (err as Error).message);
+  }
+
+  if (!adapter.searchBy.includes('demat')) {
+    console.log('  ----  demat lookup not supported by this registrar');
+    return;
+  }
+
+  for (const demat of [DUMMY_NSDL, DUMMY_CDSL]) {
+    try {
+      const result = await adapter.check({
+        companyCode: companies[0].code,
+        pan: DUMMY_PAN,
+        demat,
+        by: 'demat',
+      });
+      if (result.status === 'not_applied') {
+        pass(`check(${demat.depository} demat) -> not_applied`);
+      } else {
+        // An unallocatable demat number must not resolve to anybody's application.
+        fail(`check(${demat.depository} demat) -> ${result.status}`, result.message);
+      }
+    } catch (err) {
+      fail(`check(${demat.depository} demat)`, (err as Error).message);
+    }
   }
 }
 

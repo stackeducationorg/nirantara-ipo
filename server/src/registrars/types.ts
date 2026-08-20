@@ -11,9 +11,28 @@ export interface RegistrarCompany {
   name: string;
 }
 
+export type Depository = 'NSDL' | 'CDSL';
+
+/**
+ * A demat account, stored in the form the registrars expect:
+ *   NSDL — "IN" followed by 14 digits
+ *   CDSL — 16 digits
+ * Registrars that split it (Bigshare wants DP ID and Client ID separately) slice it themselves.
+ */
+export interface DematAccount {
+  depository: Depository;
+  id: string;
+}
+
+export type SearchBy = 'pan' | 'demat';
+
 export interface AllotmentQuery {
   companyCode: string;
   pan: string;
+  /** Set when the saved applicant also has a demat account on file. */
+  demat?: DematAccount | null;
+  /** Which identifier to look up by. Defaults to `pan`. */
+  by?: SearchBy;
 }
 
 export interface AllotmentLookup {
@@ -35,6 +54,12 @@ export interface RegistrarAdapter {
   driver: 'http' | 'browser';
   /** Hostname fragments that identify this registrar on an IPO detail page. */
   match: string[];
+  /**
+   * Identifier kinds this registrar can search by. Every registrar accepts a PAN; only some
+   * accept a demat account, so this is what stops a demat lookup being sent somewhere that
+   * would silently answer "not applied" instead of admitting it cannot search that way.
+   */
+  searchBy: SearchBy[];
   /** The issues this registrar currently has open for allotment lookup. */
   listCompanies(): Promise<RegistrarCompany[]>;
   check(query: AllotmentQuery): Promise<AllotmentLookup>;

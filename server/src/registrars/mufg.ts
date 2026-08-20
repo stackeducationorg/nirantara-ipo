@@ -21,8 +21,9 @@ const ORIGIN = 'https://in.mpms.mufg.com';
 const BASE = `${ORIGIN}/Initial_Offer`;
 const PAGE = `${BASE}/public-issues.html`;
 
-/** CHKVAL selects the search mode; 1 is PAN. 2-4 are application no, DP/Client ID and IFSC. */
+/** CHKVAL selects the search mode. 2 is application number and 4 is IFSC, neither used here. */
 const MODE_PAN = '1';
+const MODE_DEMAT = '3';
 
 interface PageMethodResponse {
   d?: string;
@@ -96,7 +97,7 @@ function pick(row: Record<string, string>, patterns: RegExp[]): string | undefin
 
 export function parseMufgRows(rows: Record<string, string>[]): AllotmentLookup {
   if (rows.length === 0) {
-    return { status: 'not_applied', message: 'No application found for this PAN' };
+    return { status: 'not_applied', message: 'No application found' };
   }
 
   const row = rows[0];
@@ -120,12 +121,16 @@ export function parseMufgRows(rows: Record<string, string>[]): AllotmentLookup {
   };
 }
 
-async function check({ companyCode, pan }: AllotmentQuery): Promise<AllotmentLookup> {
+async function check({ companyCode, pan, demat, by }: AllotmentQuery): Promise<AllotmentLookup> {
+  const useDemat = by === 'demat';
+  if (useDemat && !demat) throw new RegistrarError('No demat account on file for this applicant');
+
+  // The parameter is named PAN whichever mode is in use; CHKVAL is what actually selects it.
   const xml = await pageMethod('SearchOnPan', {
     clientid: companyCode,
-    PAN: pan,
+    PAN: useDemat ? demat!.id : pan,
     IFSC: '',
-    CHKVAL: MODE_PAN,
+    CHKVAL: useDemat ? MODE_DEMAT : MODE_PAN,
     token: await freshToken(),
   });
   return parseMufgRows(parseRows(xml));
@@ -136,6 +141,7 @@ export const mufg: RegistrarAdapter = {
   name: 'MUFG Intime (Link Intime)',
   driver: 'http',
   match: ['mufg', 'linkintime', 'link intime', 'mpms'],
+  searchBy: ['pan', 'demat'],
   listCompanies,
   check,
 };
