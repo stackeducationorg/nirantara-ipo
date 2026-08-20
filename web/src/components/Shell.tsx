@@ -205,9 +205,9 @@ function Footer() {
           </div>
           <div className="footer-col">
             <h4>Legal</h4>
-            <span>Terms of Service</span>
-            <span>Privacy Policy</span>
-            <span>Disclaimer</span>
+            <NavLink to="/terms">Terms of Service</NavLink>
+            <NavLink to="/privacy">Privacy Policy</NavLink>
+            <NavLink to="/disclaimer">Disclaimer</NavLink>
           </div>
         </div>
 

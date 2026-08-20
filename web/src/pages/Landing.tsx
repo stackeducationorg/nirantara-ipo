@@ -418,9 +418,9 @@ export function Landing() {
 
               <div className="lp-plate-col">
                 <h4>Legal</h4>
-                <span>Terms of Service</span>
-                <span>Privacy Policy</span>
-                <span>Disclaimer</span>
+                <Link to="/terms">Terms of Service</Link>
+                <Link to="/privacy">Privacy Policy</Link>
+                <Link to="/disclaimer">Disclaimer</Link>
               </div>
             </div>
           </div>
