@@ -203,6 +203,30 @@ export function markRefund(accountId: string, applicationId: string, received: b
 }
 
 /**
+ * Marks every outstanding refund for one IPO at once — the "got it back" action, since a
+ * refund lands as a single credit covering all of an account's applications to that issue
+ * rather than one per PAN.
+ *
+ * Applications that were fully allotted are skipped rather than treated as an error: they
+ * simply have nothing owed back.
+ */
+export function markIpoRefund(accountId: string, ipoId: string, received: boolean): number {
+  const result = db
+    .prepare(
+      `UPDATE applications
+          SET refund_status = ?, settled_at = ?, updated_at = datetime('now')
+        WHERE account_id = ? AND ipo_id = ? AND refund_status IN ('refund_pending', 'refund_received')`,
+    )
+    .run(
+      received ? 'refund_received' : 'refund_pending',
+      received ? new Date().toISOString() : null,
+      accountId,
+      ipoId,
+    );
+  return result.changes;
+}
+
+/**
  * Reconciles the ledger against freshly-checked allotment results: how many shares were
  * allotted, how much of the block became a purchase, and how much is owed back.
  *

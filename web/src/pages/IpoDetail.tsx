@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '../api';
 import { AllotmentPanel } from '../components/AllotmentPanel';
-import { ApplyPanel } from '../components/ApplyPanel';
 import { Logo } from '../components/IpoCard';
 import { IconArrowLeft } from '../components/Icons';
 import { gmpText, gmpTone, money, relativeTime, shortDate, statusLabel } from '../format';
@@ -204,7 +203,6 @@ export function IpoDetail() {
         )}
       </div>
 
-      <ApplyPanel ipo={ipo} />
       <AllotmentPanel ipo={ipo} />
       <GmpChart ipo={ipo} />
       <Subscription ipo={ipo} />

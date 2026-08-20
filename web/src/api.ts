@@ -139,6 +139,9 @@ export const api = {
     }),
   applyAll: (ipoId: string, lots: number) =>
     post<Application[]>(`/applications/ipo/${ipoId}/apply-all`, { lots }),
+  /** Settles every outstanding refund for one IPO in a single call. */
+  markIpoRefund: (ipoId: string, received = true) =>
+    post<{ ok: true; updated: number }>(`/applications/ipo/${ipoId}/refund`, { received }),
   markRefund: (applicationId: string, received: boolean) =>
     post<Application>(`/applications/${applicationId}/refund`, { received }),
 

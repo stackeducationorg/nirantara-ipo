@@ -143,6 +143,22 @@ export function ApplyPanel({ ipo }: { ipo: Ipo }) {
     );
   }
 
+  /**
+   * Allotted accounts float to the top — once results are out that is the only row anyone is
+   * looking for, and it would otherwise sit wherever the PAN happened to be added.
+   */
+  const accounts = [...board.accounts].sort((a, b) => {
+    const rank = (x: typeof a) => {
+      const app = x.application;
+      if (app?.allottedShares && app.allottedShares > 0) return 0;
+      if (app?.allottedShares === 0) return 1;
+      if (app) return 2;
+      return 3;
+    };
+    const diff = rank(a) - rank(b);
+    return diff !== 0 ? diff : (b.application?.allottedShares ?? 0) - (a.application?.allottedShares ?? 0);
+  });
+
   const anyApplied = board.accounts.some((a) => a.application);
   const anySettled = board.accounts.some((a) => a.application?.allottedShares !== null);
   const error = (save.error ?? applyAll.error ?? refund.error) as ApiError | null;
@@ -186,7 +202,7 @@ export function ApplyPanel({ ipo }: { ipo: Ipo }) {
       </div>
 
       <div className="rows">
-        {board.accounts.map((account) => {
+        {accounts.map((account) => {
           const app = account.application;
           const lots = app?.lots ?? 0;
           const settled = app?.allottedShares !== null && app?.allottedShares !== undefined;

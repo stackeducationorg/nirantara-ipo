@@ -6,6 +6,7 @@ import { maskIdentity } from '../services/allotment.js';
 import {
   applyAll,
   listApplications,
+  markIpoRefund,
   markRefund,
   moneyByIpo,
   moneySummary,
@@ -115,6 +116,17 @@ applicationsRouter.post('/ipo/:ipoId/apply-all', (req, res) => {
 
   try {
     res.json(applyAll(req.accountId!, req.params.ipoId, parsed.data.lots, parsed.data.category));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Marks every outstanding refund for one IPO — one credit, one action. */
+applicationsRouter.post('/ipo/:ipoId/refund', (req, res) => {
+  const received = (req.body ?? {}).received !== false;
+  try {
+    const updated = markIpoRefund(req.accountId!, req.params.ipoId, received);
+    res.json({ ok: true, updated });
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }

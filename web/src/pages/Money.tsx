@@ -1,11 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
+import { ApplyPanel, REFUND_LABEL } from '../components/ApplyPanel';
 import { Logo, Section } from '../components/IpoCard';
-import { REFUND_LABEL } from '../components/ApplyPanel';
 import { IconInfo, IconWallet } from '../components/Icons';
 import { money, num, shortDate } from '../format';
-import type { RefundStatus } from '../types';
+import type { Ipo, RefundStatus } from '../types';
 
 const TONE_CLASS: Record<RefundStatus, string> = {
   blocked: '',
@@ -15,11 +16,32 @@ const TONE_CLASS: Record<RefundStatus, string> = {
 };
 
 export function Money() {
+  const queryClient = useQueryClient();
+  const [selectedId, setSelectedId] = useState('');
+
   const { data: summary, isLoading } = useQuery({
     queryKey: ['money-summary'],
     queryFn: api.moneySummary,
   });
   const { data: rows } = useQuery({ queryKey: ['money-by-ipo'], queryFn: api.moneyByIpo });
+  const { data: dashboard } = useQuery({ queryKey: ['dashboard'], queryFn: api.dashboard });
+
+  /** The issues worth recording against: still open, coming up, or awaiting their result. */
+  const selectable: Ipo[] = useMemo(() => {
+    if (!dashboard) return [];
+    return [...dashboard.open, ...dashboard.awaitingAllotment, ...dashboard.upcoming];
+  }, [dashboard]);
+
+  const selected = selectable.find((i) => i.id === selectedId) ?? null;
+
+  const refundIpo = useMutation({
+    mutationFn: (ipoId: string) => api.markIpoRefund(ipoId, true),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['money-summary'] });
+      void queryClient.invalidateQueries({ queryKey: ['money-by-ipo'] });
+      void queryClient.invalidateQueries({ queryKey: ['applications'] });
+    },
+  });
 
   const hasAny = (summary?.applicationCount ?? 0) > 0;
 
@@ -30,19 +52,48 @@ export function Money() {
         What you applied for from each account, and where that money is right now.
       </p>
 
+      {/* Recording an application lives here rather than on the IPO page, so everything to do
+          with money is in one place. */}
+      <div className="card card-pad" style={{ marginBottom: 18 }}>
+        <h2 className="section-title" style={{ marginBottom: 10 }}>
+          Record an application
+        </h2>
+        <div className="field" style={{ marginBottom: selected ? 14 : 0 }}>
+          <label className="label" htmlFor="ipo-pick">
+            Choose an IPO
+          </label>
+          <select
+            id="ipo-pick"
+            className="input"
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+          >
+            <option value="">Select an IPO…</option>
+            {selectable.map((ipo) => (
+              <option key={ipo.id} value={ipo.id}>
+                {ipo.name}
+                {ipo.category === 'SME' ? ' (SME)' : ''}
+              </option>
+            ))}
+          </select>
+          {selectable.length === 0 && (
+            <p className="input-hint">No IPOs are open or awaiting allotment right now.</p>
+          )}
+        </div>
+      </div>
+
+      {selected && <ApplyPanel ipo={selected} />}
+
       {isLoading ? (
         <div className="skeleton" style={{ height: 120, marginBottom: 22 }} />
       ) : !hasAny ? (
         <div className="card empty">
           <IconWallet size={26} />
           <div style={{ marginBottom: 6 }}>Nothing recorded yet.</div>
-          <div className="faint" style={{ fontSize: 12.5, maxWidth: 320, margin: '0 auto 16px' }}>
-            Open an IPO and mark how many lots you applied for from each account — the totals and
-            refunds will show up here.
+          <div className="faint" style={{ fontSize: 12.5, maxWidth: 340, margin: '0 auto' }}>
+            Pick an IPO above and mark how many lots you applied for from each account — the
+            totals and refunds will show up here.
           </div>
-          <Link to="/" className="btn primary">
-            Browse IPOs
-          </Link>
         </div>
       ) : (
         <>
@@ -90,11 +141,11 @@ export function Money() {
           <Section title="By IPO" count={rows?.length}>
             <div className="ipo-list">
               {(rows ?? []).map((row) => (
-                <Link key={row.ipoId} to={`/ipo/${row.ipoId}`} className="ipo-row">
+                <div className="ipo-row" key={row.ipoId}>
                   <Logo ipo={{ name: row.ipoName, logoUrl: row.logoUrl }} />
                   <div className="ipo-main">
                     <div className="ipo-name">
-                      {row.ipoName}
+                      <Link to={`/ipo/${row.ipoId}`}>{row.ipoName}</Link>
                       <span className={`tag ${TONE_CLASS[row.refundStatus]}`}>
                         {REFUND_LABEL[row.refundStatus]}
                       </span>
@@ -123,8 +174,20 @@ export function Money() {
                           ? `${money(row.refundAmount)} back`
                           : 'awaiting allotment'}
                     </div>
+                    {/* One credit covers every application to an issue, so this settles them together. */}
+                    {row.refundStatus === 'refund_pending' && (
+                      <button
+                        className="btn sm"
+                        style={{ marginTop: 6 }}
+                        disabled={refundIpo.isPending}
+                        onClick={() => refundIpo.mutate(row.ipoId)}
+                      >
+                        {refundIpo.isPending && <span className="spinner" />}
+                        Got it back
+                      </button>
+                    )}
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           </Section>
