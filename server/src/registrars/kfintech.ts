@@ -1,3 +1,4 @@
+import { config } from '../config.js';
 import { getJson } from '../util/http.js';
 import { logger } from '../util/logger.js';
 import { toInt } from '../util/parse.js';
@@ -31,6 +32,14 @@ const CACHE_TTL_MS = 30 * 60 * 1000;
  */
 async function listCompanies(): Promise<RegistrarCompany[]> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.items;
+
+  // On a small host Chromium cannot launch, and calling it anyway hangs the whole allotment
+  // sweep rather than failing fast. Per-PAN lookups below are plain HTTP and keep working.
+  if (!config.enableBrowserRegistrars) {
+    log.warn('browser registrars disabled — KFin issue list unavailable, lookups still work');
+    cache = { at: Date.now(), items: [] };
+    return [];
+  }
 
   const items = await withPage(async (page) => {
     await page.goto(SITE, { waitUntil: 'networkidle', timeout: 45_000 });
