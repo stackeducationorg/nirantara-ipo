@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { logoSrc } from '../api';
 import { gmpText, gmpTone, initials, money, shortDate, statusLabel } from '../format';
 import type { Ipo } from '../types';
 import { IconInbox } from './Icons';
@@ -11,7 +12,7 @@ import { IconInbox } from './Icons';
  */
 export function Logo({ ipo }: { ipo: Pick<Ipo, 'name' | 'logoUrl'> }) {
   const [failed, setFailed] = useState(false);
-  const src = ipo.logoUrl ? `/api/media/logo?u=${encodeURIComponent(ipo.logoUrl)}` : null;
+  const src = ipo.logoUrl ? logoSrc(ipo.logoUrl) : null;
 
   return (
     <div className="logo">

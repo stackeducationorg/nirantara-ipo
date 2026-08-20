@@ -15,6 +15,17 @@ import type {
 const BASE = import.meta.env.VITE_API_BASE ?? '/api';
 const TOKEN_KEY = 'niranthar.token';
 
+/**
+ * Absolute URL for a proxied company logo.
+ *
+ * This has to be built from BASE like every other call. A bare `/api/...` resolves against
+ * the page's own origin, which works in dev only because Vite proxies it — in production the
+ * frontend and the API are on different hosts, so the request hits the static site and 404s.
+ */
+export function logoSrc(upstreamUrl: string): string {
+  return `${BASE}/media/logo?u=${encodeURIComponent(upstreamUrl)}`;
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }

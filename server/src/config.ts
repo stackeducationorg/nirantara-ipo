@@ -38,6 +38,10 @@ export const config = {
   /** Shared secret for /api/admin/* job triggers. Unset disables those routes entirely. */
   adminToken: optional('ADMIN_TOKEN'),
 
+  // Google Sign-In. Empty disables the endpoint entirely rather than accepting
+  // unverifiable tokens, so a missing value fails closed.
+  googleClientId: optional('GOOGLE_CLIENT_ID'),
+
   /** Comma-separated origins allowed to call the API. Empty = allow all (dev). */
   corsOrigins: optional('CORS_ORIGINS')
     .split(',')

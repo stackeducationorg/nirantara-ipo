@@ -196,9 +196,15 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
 addColumnIfMissing('accounts', 'email', 'TEXT');
 addColumnIfMissing('accounts', 'password_hash', 'TEXT');
 addColumnIfMissing('accounts', 'name', 'TEXT');
+// Google's stable user id ("sub"). Kept alongside the email because a Google account's
+// email can change, while the sub never does.
+addColumnIfMissing('accounts', 'google_sub', 'TEXT');
 
 // ALTER TABLE cannot add a UNIQUE column, so the constraint is a separate index.
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_email ON accounts(email) WHERE email IS NOT NULL');
+db.exec(
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_google ON accounts(google_sub) WHERE google_sub IS NOT NULL',
+);
 
 log.info(`sqlite ready at ${config.dbPath}`);
 

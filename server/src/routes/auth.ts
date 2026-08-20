@@ -9,6 +9,7 @@ import {
   randomToken,
   verifyPassword,
 } from '../util/crypto.js';
+import { verifyGoogleIdToken } from '../util/googleAuth.js';
 import { logger } from '../util/logger.js';
 
 const log = logger('auth');
@@ -95,6 +96,7 @@ interface AccountRow {
   email: string | null;
   password_hash: string | null;
   name: string | null;
+  google_sub: string | null;
   created_at: string;
 }
 
@@ -114,6 +116,10 @@ function publicAccount(account: AccountRow) {
     name: account.name,
     syncKey: account.sync_key,
     createdAt: account.created_at,
+    // Lets the UI offer "set a password" rather than "change password" to accounts that
+    // signed up with Google and have never had one.
+    hasPassword: Boolean(account.password_hash),
+    hasGoogle: Boolean(account.google_sub),
   };
 }
 
@@ -166,6 +172,80 @@ authRouter.post('/login', rateLimit(10, 15 * 60_000), (req, res) => {
   res.json({ token, account: publicAccount(account) });
 });
 
+/**
+ * Google Sign-In. The browser obtains an ID token from Google and posts it here; the token
+ * is verified server-side before it is trusted for anything.
+ *
+ * Three cases are handled: a returning Google user (matched on the immutable `sub`), an
+ * existing password account whose email matches, and a brand new user.
+ */
+authRouter.post('/google', rateLimit(20, 15 * 60_000), async (req, res) => {
+  const parsed = z
+    .object({
+      idToken: z.string().min(20),
+      platform: z.enum(['web', 'ios', 'android']).default('web'),
+    })
+    .safeParse(req.body ?? {});
+
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Missing Google credential' });
+    return;
+  }
+
+  let identity;
+  try {
+    identity = await verifyGoogleIdToken(parsed.data.idToken);
+  } catch (err) {
+    log.warn(`google sign-in rejected: ${(err as Error).message}`);
+    res.status(401).json({ error: 'Could not verify your Google account' });
+    return;
+  }
+
+  const byGoogle = db.prepare('SELECT * FROM accounts WHERE google_sub = ?').get(identity.sub) as
+    | AccountRow
+    | undefined;
+
+  let account = byGoogle;
+
+  if (!account) {
+    const byEmail = db.prepare('SELECT * FROM accounts WHERE email = ?').get(identity.email) as
+      | AccountRow
+      | undefined;
+
+    if (byEmail) {
+      // Linking on an unverified email would let anyone who can create a Google account
+      // claiming someone else's address take over that account.
+      if (!identity.emailVerified) {
+        res.status(401).json({ error: 'Your Google email is not verified' });
+        return;
+      }
+      db.prepare('UPDATE accounts SET google_sub = ?, name = COALESCE(name, ?) WHERE id = ?').run(
+        identity.sub,
+        identity.name,
+        byEmail.id,
+      );
+      account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(byEmail.id) as AccountRow;
+      log.info(`linked google to existing account ${byEmail.id}`);
+    } else {
+      if (!identity.emailVerified) {
+        res.status(401).json({ error: 'Your Google email is not verified' });
+        return;
+      }
+      const id = crypto.randomUUID();
+      // No password_hash: this account signs in with Google until it sets one.
+      db.prepare(
+        'INSERT INTO accounts (id, sync_key, email, name, google_sub) VALUES (?, ?, ?, ?, ?)',
+      ).run(id, generateSyncKey(), identity.email, identity.name, identity.sub);
+      db.prepare('INSERT INTO alert_prefs (account_id) VALUES (?)').run(id);
+      account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(id) as AccountRow;
+      log.info(`registered via google ${identity.email}`);
+    }
+  }
+
+  const token = issueToken(account.id, parsed.data.platform, 'Google');
+  res.json({ token, account: publicAccount(account) });
+});
+
 authRouter.get('/me', requireAuth, (req, res) => {
   const account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(req.accountId!) as AccountRow;
   const devices = db.prepare('SELECT COUNT(*) AS n FROM device_tokens WHERE account_id = ?').get(
@@ -184,7 +264,9 @@ authRouter.post('/logout', requireAuth, (req, res) => {
 });
 
 const changePassword = z.object({
-  currentPassword: z.string().min(1),
+  // Omitted when the account has never had a password, which is the case for anyone who
+  // signed up with Google. They are already authenticated by their bearer token.
+  currentPassword: z.string().min(1).optional(),
   newPassword: z.string().min(8, 'New password must be at least 8 characters').max(200),
 });
 
@@ -196,9 +278,13 @@ authRouter.post('/change-password', requireAuth, rateLimit(5, 15 * 60_000), (req
   }
 
   const account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(req.accountId!) as AccountRow;
-  if (!account.password_hash || !verifyPassword(parsed.data.currentPassword, account.password_hash)) {
-    res.status(401).json({ error: 'Current password is incorrect' });
-    return;
+
+  if (account.password_hash) {
+    const current = parsed.data.currentPassword;
+    if (!current || !verifyPassword(current, account.password_hash)) {
+      res.status(401).json({ error: 'Current password is incorrect' });
+      return;
+    }
   }
 
   db.prepare('UPDATE accounts SET password_hash = ? WHERE id = ?').run(
