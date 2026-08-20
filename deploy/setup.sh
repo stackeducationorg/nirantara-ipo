@@ -76,6 +76,11 @@ id -u "$APP_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /usr
 
 # ---------------------------------------------------------------- source
 say "Source"
+# The checkout is owned by the service user while these commands run as root, which git
+# refuses by default (CVE-2022-24765). Trust the path rather than handing it to root, so
+# re-running this script updates an existing install instead of aborting.
+git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+
 if [[ -d "$APP_DIR/.git" ]]; then
   git -C "$APP_DIR" fetch --quiet origin main
   git -C "$APP_DIR" reset --hard --quiet origin/main
