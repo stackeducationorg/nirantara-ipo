@@ -15,8 +15,11 @@ REPO="https://github.com/stackeducationorg/nirantara-ipo.git"
 APP_USER="nirantara"
 APP_DIR="/opt/nirantara"
 
-if [[ -z "$DOMAIN" || -z "$EMAIL" ]]; then
-  echo "usage: sudo bash setup.sh <api-domain> <email-for-letsencrypt>" >&2
+# The domain is optional so the API can be installed before DNS is ready. Without it the
+# nginx and certificate steps are skipped; re-run with a domain once the A record resolves.
+if [[ -n "$DOMAIN" && -z "$EMAIL" ]]; then
+  echo "usage: sudo bash setup.sh [api-domain] [email-for-letsencrypt]" >&2
+  echo "  an email is required whenever a domain is given" >&2
   exit 1
 fi
 
@@ -186,6 +189,17 @@ if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>
   firewall-cmd --permanent --add-service=https >/dev/null 2>&1 || true
   firewall-cmd --reload >/dev/null 2>&1 || true
   echo "firewalld: http/https allowed"
+fi
+
+if [[ -z "$DOMAIN" ]]; then
+  say "Skipping nginx and TLS"
+  echo "no domain given — the API is listening on 127.0.0.1:4000"
+  echo "re-run with a domain once DNS resolves:"
+  echo "  sudo bash setup.sh api.yourdomain.com you@example.com"
+  echo
+  echo "Next: seed the IPO data with"
+  echo "  cd $APP_DIR/server && sudo -u $APP_USER npx tsx src/cli/sync.ts"
+  exit 0
 fi
 
 say "nginx and certificate for $DOMAIN"
