@@ -6,6 +6,18 @@ import { daysBetween, todayIso } from '../util/parse.js';
 
 export const iposRouter = Router();
 
+/**
+ * Whether the registrar has actually published the basis of allotment. The date-derived
+ * status only says the allotment *window* has opened, which is why an issue whose results
+ * are already out otherwise still reads as "awaiting".
+ */
+function allotmentIsLive(ipoId: string): boolean {
+  const row = db.prepare('SELECT state FROM allotment_watch WHERE ipo_id = ?').get(ipoId) as
+    | { state: string }
+    | undefined;
+  return row?.state === 'live' || row?.state === 'done';
+}
+
 function serialise(row: IpoRow) {
   const gmp = latestGmp(row.id);
   const today = todayIso();
@@ -38,6 +50,8 @@ function serialise(row: IpoRow) {
     gmpUpdatedAt: gmp?.captured_at ?? null,
     daysToClose: row.close_date ? daysBetween(today, row.close_date) : null,
     daysToAllotment: row.boa_date ? daysBetween(today, row.boa_date) : null,
+    /** True once the registrar is actually answering allotment queries for this issue. */
+    allotmentLive: allotmentIsLive(row.id),
   };
 }
 

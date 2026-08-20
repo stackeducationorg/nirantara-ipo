@@ -57,24 +57,40 @@ function iposAwaitingAllotment(): IpoRow[] {
 }
 
 /**
- * Cheap liveness probe: ask the registrar about a single real PAN. Until the basis of
- * allotment is published the registrar answers "no records", so a definitive allotted or
- * not-allotted answer is the signal that results have gone live.
+ * Decides whether the basis of allotment has actually been published.
+ *
+ * The probe must use a PAN that genuinely applied to *this* issue. An arbitrary saved PAN
+ * answers "no records" whether results are unpublished or that person simply did not apply,
+ * and the two are indistinguishable — which previously left issues stuck on "waiting"
+ * indefinitely whenever the sampled PAN had not applied.
+ *
+ * With no recorded application to probe with, the registrar's own issue list is the signal:
+ * a company only appears there once its allotment can be looked up.
  */
 async function resultsArePublished(ipo: IpoRow): Promise<boolean> {
   const adapter = getRegistrar(ipo.registrar_key);
   if (!adapter || !ipo.registrar_code) return false;
 
-  // Any saved PAN will do — this only asks the registrar whether results are published.
-  const pan = db
-    .prepare('SELECT pan_enc FROM pans WHERE is_active = 1 AND pan_enc IS NOT NULL LIMIT 1')
-    .get() as
-    | { pan_enc: string }
-    | undefined;
-  if (!pan) return false;
+  const applicant = db
+    .prepare(
+      `SELECT p.pan_enc
+         FROM applications a JOIN pans p ON p.id = a.pan_id
+        WHERE a.ipo_id = ? AND p.pan_enc IS NOT NULL AND p.is_active = 1
+        LIMIT 1`,
+    )
+    .get(ipo.id) as { pan_enc: string } | undefined;
 
-  const lookup = await adapter.check({ companyCode: ipo.registrar_code, pan: decryptPan(pan.pan_enc) });
-  return lookup.status === 'allotted' || lookup.status === 'not_allotted';
+  if (applicant) {
+    const lookup = await adapter.check({
+      companyCode: ipo.registrar_code,
+      pan: decryptPan(applicant.pan_enc),
+    });
+    // This PAN did apply, so "not applied" can only mean the results are not out yet.
+    return lookup.status === 'allotted' || lookup.status === 'not_allotted';
+  }
+
+  const companies = await adapter.listCompanies().catch(() => []);
+  return companies.some((c) => c.code === ipo.registrar_code);
 }
 
 /**

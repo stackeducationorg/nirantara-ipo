@@ -31,7 +31,11 @@ export function Home() {
   const only = (items: Ipo[] | undefined): Ipo[] =>
     (items ?? []).filter((ipo) => (smeOnly ? ipo.category === 'SME' : ipo.category !== 'SME'));
 
-  const awaiting = only(data?.awaitingAllotment);
+  const inAllotmentWindow = only(data?.awaitingAllotment);
+  // The date-derived status only says the allotment window has opened. Splitting on whether
+  // the registrar is actually answering stops a published result reading as "awaiting".
+  const resultsOut = inAllotmentWindow.filter((i) => i.allotmentLive);
+  const awaiting = inAllotmentWindow.filter((i) => !i.allotmentLive);
   const open = only(data?.open);
   const upcoming = only(data?.upcoming);
   const listed = only(data?.recentlyListed);
@@ -73,16 +77,22 @@ export function Home() {
         <Loading />
       ) : (
         <>
-          {awaiting.length > 0 && (
+          {resultsOut.length > 0 && (
             <Section
-              title="Awaiting allotment"
-              count={awaiting.length}
+              title="Results out"
+              count={resultsOut.length}
               action={
                 <Link to="/allotment" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   Check all <IconChevronRight size={13} />
                 </Link>
               }
             >
+              <IpoList items={resultsOut} empty="" />
+            </Section>
+          )}
+
+          {awaiting.length > 0 && (
+            <Section title="Awaiting allotment" count={awaiting.length}>
               <IpoList items={awaiting} empty="" />
             </Section>
           )}

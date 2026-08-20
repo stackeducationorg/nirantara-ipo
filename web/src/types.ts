@@ -27,6 +27,8 @@ export interface Ipo {
   gmpUpdatedAt: string | null;
   daysToClose: number | null;
   daysToAllotment: number | null;
+  /** True once the registrar is actually answering allotment queries for this issue. */
+  allotmentLive: boolean;
   gmpHistory?: GmpPoint[];
 }
 
