@@ -59,38 +59,47 @@ function iposAwaitingAllotment(): IpoRow[] {
 /**
  * Decides whether the basis of allotment has actually been published.
  *
- * The probe must use a PAN that genuinely applied to *this* issue. An arbitrary saved PAN
- * answers "no records" whether results are unpublished or that person simply did not apply,
- * and the two are indistinguishable — which previously left issues stuck on "waiting"
- * indefinitely whenever the sampled PAN had not applied.
- *
- * With no recorded application to probe with, the registrar's own issue list is the signal:
- * a company only appears there once its allotment can be looked up.
+ * Three signals, cheapest and most definitive first. The subtlety is that "no records" from
+ * the registrar is ambiguous — it means either the results are not out, or that person did
+ * not apply — so no single PAN lookup can settle it. Applications are user-declared, so even
+ * a PAN with a recorded application may never have actually applied.
  */
 async function resultsArePublished(ipo: IpoRow): Promise<boolean> {
   const adapter = getRegistrar(ipo.registrar_key);
   if (!adapter || !ipo.registrar_code) return false;
 
-  const applicant = db
+  // 1. A definitive answer already recorded for this issue is proof the registrar is live.
+  const settled = db
     .prepare(
-      `SELECT p.pan_enc
+      `SELECT 1 FROM allotment_results
+        WHERE ipo_id = ? AND status IN ('allotted', 'not_allotted') LIMIT 1`,
+    )
+    .get(ipo.id);
+  if (settled) return true;
+
+  // 2. A company only appears in the registrar's own list once its allotment can be queried.
+  const companies = await adapter.listCompanies().catch(() => []);
+  if (companies.some((c) => c.code === ipo.registrar_code)) return true;
+
+  // 3. Last resort: ask on behalf of a few PANs that claim to have applied. Several are
+  //    tried because any one of them may simply not have applied after all.
+  const applicants = db
+    .prepare(
+      `SELECT DISTINCT p.pan_enc
          FROM applications a JOIN pans p ON p.id = a.pan_id
         WHERE a.ipo_id = ? AND p.pan_enc IS NOT NULL AND p.is_active = 1
-        LIMIT 1`,
+        LIMIT 3`,
     )
-    .get(ipo.id) as { pan_enc: string } | undefined;
+    .all(ipo.id) as { pan_enc: string }[];
 
-  if (applicant) {
-    const lookup = await adapter.check({
-      companyCode: ipo.registrar_code,
-      pan: decryptPan(applicant.pan_enc),
-    });
-    // This PAN did apply, so "not applied" can only mean the results are not out yet.
-    return lookup.status === 'allotted' || lookup.status === 'not_allotted';
+  for (const applicant of applicants) {
+    const lookup = await adapter
+      .check({ companyCode: ipo.registrar_code, pan: decryptPan(applicant.pan_enc) })
+      .catch(() => null);
+    if (lookup && (lookup.status === 'allotted' || lookup.status === 'not_allotted')) return true;
   }
 
-  const companies = await adapter.listCompanies().catch(() => []);
-  return companies.some((c) => c.code === ipo.registrar_code);
+  return false;
 }
 
 /**
