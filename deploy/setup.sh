@@ -144,6 +144,36 @@ systemctl is-active --quiet nirantara-api && echo "service running" || {
 }
 
 # ---------------------------------------------------------------- nginx + TLS
+# ---------------------------------------------------------------- host firewall
+# Oracle Cloud images ship with a local firewall that drops everything except SSH,
+# *in addition* to the cloud-level security list. Opening only the security list is
+# the single most common reason an Oracle deployment appears dead on ports 80/443.
+say "Host firewall"
+if command -v netfilter-persistent >/dev/null 2>&1 || iptables -L INPUT -n >/dev/null 2>&1; then
+  for port in 80 443; do
+    if ! iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
+      # Insert above the blanket REJECT rule rather than appending after it.
+      iptables -I INPUT 6 -p tcp --dport "$port" -m state --state NEW,ESTABLISHED -j ACCEPT
+      echo "opened tcp/$port"
+    else
+      echo "tcp/$port already open"
+    fi
+  done
+  if command -v netfilter-persistent >/dev/null 2>&1; then
+    netfilter-persistent save >/dev/null 2>&1 && echo "iptables rules persisted"
+  elif [[ -d /etc/iptables ]]; then
+    iptables-save > /etc/iptables/rules.v4 && echo "iptables rules saved"
+  fi
+fi
+
+# Oracle's Oracle-Linux images use firewalld instead.
+if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+  firewall-cmd --permanent --add-service=http  >/dev/null 2>&1 || true
+  firewall-cmd --permanent --add-service=https >/dev/null 2>&1 || true
+  firewall-cmd --reload >/dev/null 2>&1 || true
+  echo "firewalld: http/https allowed"
+fi
+
 say "nginx and certificate for $DOMAIN"
 sed "s/__DOMAIN__/$DOMAIN/g" "$APP_DIR/deploy/nginx.conf" > /etc/nginx/sites-available/nirantara
 ln -sf /etc/nginx/sites-available/nirantara /etc/nginx/sites-enabled/nirantara
