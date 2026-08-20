@@ -5,7 +5,6 @@
   },
   "build": {
     "preview": {
-      "//": "Free tier. Android -> sideloadable .apk. iOS -> .app for the Simulator (no Apple account needed).",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
@@ -14,12 +13,10 @@
         "simulator": true
       },
       "env": {
-        "//": "The deployed API. Point this at a LAN address only when testing against a dev server.",
         "EXPO_PUBLIC_API_BASE": "https://api.nirantara.cloud/api"
       }
     },
     "device": {
-      "//": "Installable on real iPhones. Requires a paid Apple Developer account for signing.",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
@@ -32,7 +29,6 @@
       }
     },
     "production": {
-      "//": "Store submissions: Android .aab, iOS .ipa. Neither can be installed by hand.",
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"

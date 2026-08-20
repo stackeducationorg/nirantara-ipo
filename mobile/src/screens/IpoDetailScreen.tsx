@@ -9,6 +9,9 @@ import { useTheme } from '../theme';
 import type { AllotmentResult, Ipo } from '../types';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+/** Half-width cell for the two-column stat grid on this screen. */
+const half = { width: '50%' as const };
+
 const STATUS_TEXT: Record<AllotmentResult['status'], string> = {
   allotted: 'Allotted',
   not_allotted: 'Not allotted',
@@ -245,25 +248,18 @@ export function IpoDetailScreen({ route }: Props) {
           )}
         </View>
 
+        {/*
+          Two-column grid. The width goes on the Stat itself: wrapping each one in a sized
+          View left Stat's default `flex: 1` resolving against the wrapper's auto height,
+          which is what collapsed the cells.
+        */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 14, marginTop: 18 }}>
-          <View style={{ width: '50%' }}>
-            <Stat label="Price band" value={ipo.priceText ? `₹${ipo.priceText}` : '—'} />
-          </View>
-          <View style={{ width: '50%' }}>
-            <Stat label="Lot size" value={String(ipo.lotSize ?? '—')} />
-          </View>
-          <View style={{ width: '50%' }}>
-            <Stat label="Min investment" value={money(ipo.lotAmount)} />
-          </View>
-          <View style={{ width: '50%' }}>
-            <Stat label="Issue size" value={ipo.issueSize ?? '—'} />
-          </View>
-          <View style={{ width: '50%' }}>
-            <Stat label="Est. listing" value={money(ipo.estListingPrice)} />
-          </View>
-          <View style={{ width: '50%' }}>
-            <Stat label="Registrar" value={ipo.registrar ?? 'TBD'} />
-          </View>
+          <Stat style={half} label="Price band" value={ipo.priceText ? `₹${ipo.priceText}` : '—'} />
+          <Stat style={half} label="Lot size" value={String(ipo.lotSize ?? '—')} />
+          <Stat style={half} label="Min investment" value={money(ipo.lotAmount)} />
+          <Stat style={half} label="Issue size" value={ipo.issueSize ?? '—'} />
+          <Stat style={half} label="Est. listing" value={money(ipo.estListingPrice)} />
+          <Stat style={half} label="Registrar" value={ipo.registrar ?? 'TBD'} />
         </View>
       </Card>
 

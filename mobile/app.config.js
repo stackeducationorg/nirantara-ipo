@@ -18,7 +18,12 @@ export default {
   expo: {
     name: 'Nirantara IPO',
     slug: 'niranthar-ipo',
-    version: '1.0.0',
+    // Account that owns the EAS project referenced by extra.eas.projectId below.
+    owner: 'rahulrgadgimata',
+    // Release version. Scheme is major.minor.patch.build — bump the last part for every
+    // APK you hand out, and bump android.versionCode to match. Note: iOS only accepts three
+    // numeric parts, so an App Store build needs ios.version set separately (e.g. '0.0.3').
+    version: '0.0.0.3',
     orientation: 'portrait',
     scheme: 'niranthar',
     userInterfaceStyle: 'automatic',
@@ -35,7 +40,12 @@ export default {
     },
     android: {
       package: 'com.niranthar.ipo',
-      versionCode: 1,
+      // Firebase config for the FCM sender. Android push cannot work without this, but this
+      // file alone is not enough — the matching FCM V1 service account key must also be
+      // uploaded to EAS (npx eas credentials) so Expo's servers are allowed to send.
+      googleServicesFile: './google-services.json',
+      // Must be an integer and must increase for every Play Store upload.
+      versionCode: 3,
       adaptiveIcon: {
         foregroundImage: './assets/icon.png',
         backgroundColor: '#ffffff',
@@ -47,8 +57,10 @@ export default {
     extra: {
       apiBase,
       eas: {
-        // `eas init` writes the real project id here.
-        projectId: process.env.EAS_PROJECT_ID || undefined,
+        // Must be a real id, not undefined: push.ts reads it to call getExpoPushTokenAsync,
+        // which throws without one — that is why no device ever registered for notifications.
+        // Not a secret; Expo expects it committed.
+        projectId: process.env.EAS_PROJECT_ID || 'd318874f-0db8-40ff-a7ef-6a4965d304ee',
       },
     },
   },

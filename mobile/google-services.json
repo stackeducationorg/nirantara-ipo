@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1027819919695",
+    "project_id": "nirantharipo",
+    "storage_bucket": "nirantharipo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1027819919695:android:babe7e99a25a9c76804d3a",
+        "android_client_info": {
+          "package_name": "com.niranthar.ipo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUpjKhnFpMxIRl7YIXbDINYtvd9koQjos"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

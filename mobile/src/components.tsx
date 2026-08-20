@@ -140,10 +140,19 @@ export function IpoRow({ ipo, onPress }: { ipo: Ipo; onPress: () => void }) {
   );
 }
 
-export function Stat({ label, value }: { label: string; value: string }) {
+export function Stat({
+  label,
+  value,
+  style,
+}: {
+  label: string;
+  value: string;
+  /** Overrides the default flex sizing. Pass a width to lay stats out in a wrapped grid instead. */
+  style?: object;
+}) {
   const t = useTheme();
   return (
-    <View style={{ flex: 1 }}>
+    <View style={style ?? { flex: 1 }}>
       <Text style={{ color: t.textFaint, fontSize: 10, fontWeight: '600', textTransform: 'uppercase' }}>
         {label}
       </Text>
