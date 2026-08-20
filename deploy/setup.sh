@@ -171,15 +171,23 @@ systemctl is-active --quiet nirantara-api && echo "service running" || {
 # *in addition* to the cloud-level security list. Opening only the security list is
 # the single most common reason an Oracle deployment appears dead on ports 80/443.
 say "Host firewall"
-if command -v netfilter-persistent >/dev/null 2>&1 || iptables -L INPUT -n >/dev/null 2>&1; then
+if iptables -L INPUT -n >/dev/null 2>&1; then
   for port in 80 443; do
-    if ! iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null; then
-      # Insert above the blanket REJECT rule rather than appending after it.
-      iptables -I INPUT 6 -p tcp --dport "$port" -m state --state NEW,ESTABLISHED -j ACCEPT
-      echo "opened tcp/$port"
-    else
+    # This check has to use the exact spec the insert below uses. A looser one never
+    # matches, so every re-run silently appends another duplicate rule.
+    if iptables -C INPUT -p tcp --dport "$port" -m state --state NEW,ESTABLISHED -j ACCEPT 2>/dev/null; then
       echo "tcp/$port already open"
+      continue
     fi
+
+    # Oracle's images end the INPUT chain with a blanket REJECT and iptables stops at the
+    # first matching rule, so this has to be inserted *above* that REJECT — wherever it
+    # happens to sit. Hard-coding a position puts the rule below it, where it does nothing
+    # and the box still looks dead on 80/443.
+    pos=$(iptables -L INPUT -n --line-numbers | awk '$2 == "REJECT" || $2 == "DROP" { print $1; exit }')
+    [[ -z "$pos" ]] && pos=1
+    iptables -I INPUT "$pos" -p tcp --dport "$port" -m state --state NEW,ESTABLISHED -j ACCEPT
+    echo "opened tcp/$port (inserted above rule $pos)"
   done
   if command -v netfilter-persistent >/dev/null 2>&1; then
     netfilter-persistent save >/dev/null 2>&1 && echo "iptables rules persisted"
