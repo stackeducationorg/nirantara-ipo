@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { IpoList, Section } from '../components/IpoCard';
 import { IconChevronRight, IconInfo } from '../components/Icons';
+import type { Ipo } from '../types';
 
 function Loading() {
   return (
@@ -15,6 +17,10 @@ function Loading() {
 }
 
 export function Home() {
+  // SME and mainboard issues have very different lot sizes and risk, so they are never mixed:
+  // the toggle switches between them rather than adding SME to the mainboard list.
+  const [smeOnly, setSmeOnly] = useState(false);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard'],
     queryFn: api.dashboard,
@@ -22,10 +28,29 @@ export function Home() {
   });
   const { data: pans } = useQuery({ queryKey: ['pans'], queryFn: api.pans });
 
+  const only = (items: Ipo[] | undefined): Ipo[] =>
+    (items ?? []).filter((ipo) => (smeOnly ? ipo.category === 'SME' : ipo.category !== 'SME'));
+
+  const awaiting = only(data?.awaitingAllotment);
+  const open = only(data?.open);
+  const upcoming = only(data?.upcoming);
+  const listed = only(data?.recentlyListed);
+
+  const kind = smeOnly ? 'SME' : 'mainboard';
+
   return (
     <div>
       <h1 className="page-title">IPOs</h1>
       <p className="page-sub">Live grey market premium, subscription and allotment tracking.</p>
+
+      <div className="chips">
+        <button className={`chip ${smeOnly ? '' : 'active'}`} onClick={() => setSmeOnly(false)}>
+          Mainboard
+        </button>
+        <button className={`chip ${smeOnly ? 'active' : ''}`} onClick={() => setSmeOnly(true)}>
+          SME
+        </button>
+      </div>
 
       {/* Allotment checking is inert without a PAN, so this is the first thing a new user sees. */}
       {pans && pans.length === 0 && (
@@ -48,31 +73,31 @@ export function Home() {
         <Loading />
       ) : (
         <>
-          {data && data.awaitingAllotment.length > 0 && (
+          {awaiting.length > 0 && (
             <Section
               title="Awaiting allotment"
-              count={data.awaitingAllotment.length}
+              count={awaiting.length}
               action={
                 <Link to="/allotment" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                   Check all <IconChevronRight size={13} />
                 </Link>
               }
             >
-              <IpoList items={data.awaitingAllotment} empty="" />
+              <IpoList items={awaiting} empty="" />
             </Section>
           )}
 
-          <Section title="Open now" count={data?.open.length}>
-            <IpoList items={data?.open ?? []} empty="No IPOs are open for applications right now." />
+          <Section title="Open now" count={open.length}>
+            <IpoList items={open} empty={`No ${kind} IPOs are open for applications right now.`} />
           </Section>
 
-          <Section title="Upcoming" count={data?.upcoming.length}>
-            <IpoList items={data?.upcoming ?? []} empty="No upcoming IPOs announced yet." />
+          <Section title="Upcoming" count={upcoming.length}>
+            <IpoList items={upcoming} empty={`No upcoming ${kind} IPOs announced yet.`} />
           </Section>
 
-          {data && data.recentlyListed.length > 0 && (
-            <Section title="Recently listed" count={data.recentlyListed.length}>
-              <IpoList items={data.recentlyListed} empty="" />
+          {listed.length > 0 && (
+            <Section title="Recently listed" count={listed.length}>
+              <IpoList items={listed} empty="" />
             </Section>
           )}
         </>
