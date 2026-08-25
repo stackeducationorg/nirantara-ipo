@@ -1484,6 +1484,150 @@ button {
   }
 }
 
+/* ------------------------------------------------------- allotment odds */
+
+.odds {
+  margin-bottom: 16px;
+}
+
+.odds-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.odds-sub {
+  font-size: 12.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.odds-figures {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 12px;
+}
+
+.odds-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-3);
+  margin-bottom: 3px;
+}
+
+.odds-value {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text-2);
+  line-height: 1.1;
+}
+
+.odds-value.strong {
+  color: var(--info);
+}
+
+.odds-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.odds-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #6fa0f0, var(--info));
+  transition: width 0.25s ease;
+}
+
+.odds-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin-bottom: 14px;
+}
+
+.odds-stepper button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.odds-stepper button:hover:not(:disabled) {
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.odds-stepper button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.odds-stepper b {
+  min-width: 20px;
+  text-align: center;
+  color: var(--text);
+}
+
+.odds-capital {
+  margin-left: auto;
+  font-family: var(--mono);
+}
+
+.odds-lede {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text-2);
+  margin: 0 0 12px;
+}
+
+.odds-lede strong {
+  color: var(--text);
+  font-weight: 620;
+}
+
+.odds-note {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-3);
+  margin: 0 0 12px;
+}
+
+/* The honesty line. It is small, but it is not optional — the whole card is an estimate. */
+.odds-fine {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-3);
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 760px) {
+  .odds-figures {
+    gap: 22px;
+  }
+
+  .odds-value {
+    font-size: 22px;
+  }
+}
+
 /* -------------------------------------------------------------- mobile */
 
 @media (max-width: 760px) {

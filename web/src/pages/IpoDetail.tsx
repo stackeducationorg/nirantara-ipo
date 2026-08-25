@@ -4,6 +4,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { useJsonLd, useSeo, SITE_ORIGIN } from '../seo';
+import { AllotmentOdds } from '../components/AllotmentOdds';
 import { AllotmentPanel } from '../components/AllotmentPanel';
 import { Logo } from '../components/IpoCard';
 import { IconArrowLeft } from '../components/Icons';
@@ -268,6 +269,7 @@ export function IpoDetail() {
         )}
       </div>
 
+      <AllotmentOdds ipo={ipo} />
       {account ? <AllotmentPanel ipo={ipo} /> : <AllotmentCta ipo={ipo} />}
       <GmpChart ipo={ipo} />
       <Subscription ipo={ipo} />
