@@ -9,6 +9,7 @@ import { Home } from './pages/Home';
 import { IpoDetail } from './pages/IpoDetail';
 import { Landing } from './pages/Landing';
 import { Download } from './pages/Download';
+import { AllotmentGuide } from './pages/AllotmentGuide';
 import { Disclaimer, Privacy, Terms } from './pages/Legal';
 import { PublicShell } from './components/PublicShell';
 import { Money } from './pages/Money';
@@ -41,6 +42,10 @@ export function App() {
             fall back to a sign-up prompt. Legal pages are public for the same reason a privacy
             policy always should be — it is read before signing up, not after. */}
         <Route path="/gmp" element={<PublicShell><GmpBoard /></PublicShell>} />
+        <Route
+          path="/ipo-allotment-status"
+          element={<PublicShell><AllotmentGuide /></PublicShell>}
+        />
         <Route path="/ipo/:id" element={<PublicShell><IpoDetail /></PublicShell>} />
         <Route path="/terms" element={<PublicShell><Terms /></PublicShell>} />
         <Route path="/privacy" element={<PublicShell><Privacy /></PublicShell>} />
@@ -61,6 +66,7 @@ export function App() {
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/ipo/:id" element={<IpoDetail />} />
         <Route path="/download" element={<Download />} />
+        <Route path="/ipo-allotment-status" element={<AllotmentGuide />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/disclaimer" element={<Disclaimer />} />

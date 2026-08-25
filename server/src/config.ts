@@ -50,6 +50,18 @@ export const config = {
     updateMessage: optional('APP_UPDATE_MESSAGE', ''),
   },
 
+  /**
+   * Transactional email. Empty credentials disable sending outright rather than failing
+   * per-message, so a server without SMTP configured simply skips the email step.
+   */
+  smtp: {
+    host: optional('SMTP_HOST', 'smtp.gmail.com'),
+    port: Number(optional('SMTP_PORT', '465')),
+    user: optional('SMTP_USER'),
+    pass: optional('SMTP_PASS'),
+    from: optional('SMTP_FROM', 'Nirantara IPO <stack.nirantaraipo@gmail.com>'),
+  },
+
   // Google Sign-In. Empty disables the endpoint entirely rather than accepting
   // unverifiable tokens, so a missing value fails closed.
   googleClientId: optional('GOOGLE_CLIENT_ID'),

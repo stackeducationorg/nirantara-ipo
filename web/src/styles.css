@@ -1268,51 +1268,51 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
-.legal-prose h2 {
+.prose h2 {
   font-size: 17px;
   font-weight: 650;
   color: var(--text);
   margin: 34px 0 10px;
 }
 
-.legal-prose h3 {
+.prose h3 {
   font-size: 14.5px;
   font-weight: 620;
   color: var(--text);
   margin: 22px 0 8px;
 }
 
-.legal-prose p {
+.prose p {
   font-size: 14.5px;
   line-height: 1.75;
   color: var(--text-2);
   margin: 0 0 13px;
 }
 
-.legal-prose ul {
+.prose ul {
   margin: 0 0 13px;
   padding-left: 20px;
 }
 
-.legal-prose li {
+.prose li {
   font-size: 14.5px;
   line-height: 1.75;
   color: var(--text-2);
   margin-bottom: 7px;
 }
 
-.legal-prose strong {
+.prose strong {
   color: var(--text);
   font-weight: 620;
 }
 
-.legal-prose a {
+.prose a {
   color: var(--info);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.legal-prose a:hover {
+.prose a:hover {
   color: var(--accent);
 }
 

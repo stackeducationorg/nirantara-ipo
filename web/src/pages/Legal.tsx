@@ -52,7 +52,7 @@ function LegalLayout({
       <p className="legal-summary">{summary}</p>
       <p className="legal-updated">Last updated {UPDATED}</p>
 
-      <div className="legal-prose">{children}</div>
+      <div className="prose">{children}</div>
 
       <div className="legal-nav">
         <span>Also read</span>

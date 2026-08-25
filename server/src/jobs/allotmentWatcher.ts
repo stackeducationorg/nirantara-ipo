@@ -10,8 +10,9 @@ import {
   type AllotmentSummary,
 } from '../services/allotment.js';
 import { accountsWithPans, audienceForIpo, notify } from '../services/notify.js';
-import { getIpo, type IpoRow } from '../services/ipoStore.js';
+import { getIpo, latestGmp, type IpoRow } from '../services/ipoStore.js';
 
+import { sendAllotmentEmail } from '../services/email.js';
 const log = logger('watcher');
 
 function watchState(ipoId: string) {
@@ -204,6 +205,11 @@ async function notifyAccounts(ipo: IpoRow): Promise<void> {
         amount: summary.totalAmount,
       },
     });
+
+    // Email is a separate channel from push: someone who never installed the app, or who
+    // denied notification permission, still gets their result. Awaited but never throwing,
+    // so a mail failure cannot abort the rest of the sweep.
+    await sendAllotmentEmail(accountId, ipo, summary, latestGmp(ipo.id)?.gmp ?? null);
   }
 
   if (outstanding === 0) {

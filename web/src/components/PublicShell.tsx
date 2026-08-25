@@ -23,6 +23,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
 
         <nav className="pub-nav">
           <NavLink to="/gmp">Live GMP</NavLink>
+          <NavLink to="/ipo-allotment-status">Allotment check</NavLink>
         </nav>
 
         <div className="pub-actions">
@@ -44,6 +45,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           </span>
           <div className="pub-foot-links">
             <Link to="/gmp">Live GMP</Link>
+            <Link to="/ipo-allotment-status">Allotment check</Link>
             <Link to="/terms">Terms</Link>
             <Link to="/privacy">Privacy</Link>
             <Link to="/disclaimer">Disclaimer</Link>

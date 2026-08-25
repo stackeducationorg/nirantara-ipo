@@ -194,15 +194,52 @@ export function Landing() {
     path: '/',
   });
 
-  // Tells Google the site name to show under the result, and wires up the sitelinks search box.
+  // Three entities in one block. WebSite and Organization name the site under a result;
+  // SoftwareApplication is the one that matters commercially, because it is what tells Google
+  // this is an app at all — "ipo allotment app" is answered almost entirely with app listings.
+  //
+  // Deliberately no aggregateRating. Inventing a rating and review count is the single most
+  // common structured-data violation and carries a manual-action risk, and there are no real
+  // ratings to declare until the app is on a store.
   useJsonLd({
     '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'Nirantara IPO',
-    url: SITE_ORIGIN,
-    description:
-      'Live IPO GMP, subscription figures and automatic allotment checking across every saved PAN.',
-    publisher: { '@type': 'Organization', name: 'Nirantara IPO', url: SITE_ORIGIN },
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${SITE_ORIGIN}/#organization`,
+        name: 'Nirantara IPO',
+        url: SITE_ORIGIN,
+        logo: `${SITE_ORIGIN}/icon-512.png`,
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${SITE_ORIGIN}/#website`,
+        name: 'Nirantara IPO',
+        url: SITE_ORIGIN,
+        description:
+          'Live IPO GMP, subscription figures and automatic allotment checking across every saved PAN.',
+        publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+      },
+      {
+        '@type': 'SoftwareApplication',
+        name: 'Nirantara IPO',
+        applicationCategory: 'FinanceApplication',
+        operatingSystem: 'Android, Web',
+        url: SITE_ORIGIN,
+        downloadUrl: `${SITE_ORIGIN}/download`,
+        image: `${SITE_ORIGIN}/icon-512.png`,
+        description:
+          'Checks IPO allotment automatically across every PAN you save, the moment the registrar publishes, and tracks live GMP and the money blocked against each demat account.',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
+        featureList: [
+          'Automatic IPO allotment check across every saved PAN',
+          'Live IPO grey market premium and subscription figures',
+          'Alerts when an IPO opens, closes, and when allotment is published',
+          'Tracks money blocked and refunded per demat account',
+        ],
+        publisher: { '@id': `${SITE_ORIGIN}/#organization` },
+      },
+    ],
   });
 
   const year = new Date().getFullYear();

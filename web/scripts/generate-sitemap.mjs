@@ -20,6 +20,7 @@ const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'sitem
 const STATIC_ROUTES = [
   { path: '/', changefreq: 'hourly', priority: '1.0' },
   { path: '/gmp', changefreq: 'hourly', priority: '0.9' },
+  { path: '/ipo-allotment-status', changefreq: 'weekly', priority: '0.9' },
   { path: '/terms', changefreq: 'yearly', priority: '0.3' },
   { path: '/privacy', changefreq: 'yearly', priority: '0.3' },
   { path: '/disclaimer', changefreq: 'yearly', priority: '0.3' },
