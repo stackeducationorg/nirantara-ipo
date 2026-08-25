@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { useSeo } from '../seo';
 
 /**
  * Everything a lawyer or a regulator needs to be able to reach is kept here rather than
@@ -36,6 +37,8 @@ function LegalLayout({
   children: ReactNode;
 }) {
   const { pathname } = useLocation();
+
+  useSeo({ title: `${title} | ${ENTITY}`, description: summary, path: pathname });
 
   // These pages are reached from links in the footer, so the visitor is always scrolled to the
   // bottom when they click. Without this they land at the foot of a long document.
@@ -470,29 +473,5 @@ export function Disclaimer() {
         <Link to="/privacy">Privacy Policy</Link>.
       </p>
     </LegalLayout>
-  );
-}
-
-/* ------------------------------------------------------------ page chrome */
-
-/**
- * Chrome for signed-out visitors, who have no app shell around them. These pages have to be
- * reachable without an account — people read a privacy policy to decide whether to sign up,
- * not after. Signed-in users get the same pages inside the normal Shell instead.
- */
-export function LegalShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="legal-shell">
-      <header className="legal-shell-head">
-        <Link to="/" className="legal-shell-brand">
-          <img src="/logo-mark.png" alt="" width={22} height={22} />
-          Nirantara IPO
-        </Link>
-        <Link to="/login" className="btn">
-          Log in
-        </Link>
-      </header>
-      <main className="legal-shell-body">{children}</main>
-    </div>
   );
 }

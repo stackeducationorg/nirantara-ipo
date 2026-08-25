@@ -16,6 +16,7 @@ import {
 import { FallingStars } from '../components/FallingStars';
 import { HeroCard } from '../components/HeroCard';
 import { gmpText, gmpTone } from '../format';
+import { useJsonLd, useSeo, SITE_ORIGIN } from '../seo';
 import { useThemeMode } from '../theme';
 import '../landing.css';
 
@@ -186,6 +187,24 @@ const STEPS = [
 ];
 
 export function Landing() {
+  useSeo({
+    title: 'Nirantara IPO — Live GMP, IPO Calendar & Automatic Allotment Check',
+    description:
+      'Track live IPO grey market premium, price bands and subscription figures. Save your PANs once and every one of them is checked automatically the moment allotment is out.',
+    path: '/',
+  });
+
+  // Tells Google the site name to show under the result, and wires up the sitelinks search box.
+  useJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Nirantara IPO',
+    url: SITE_ORIGIN,
+    description:
+      'Live IPO GMP, subscription figures and automatic allotment checking across every saved PAN.',
+    publisher: { '@type': 'Organization', name: 'Nirantara IPO', url: SITE_ORIGIN },
+  });
+
   const year = new Date().getFullYear();
 
   return (

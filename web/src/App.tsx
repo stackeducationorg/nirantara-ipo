@@ -9,7 +9,8 @@ import { Home } from './pages/Home';
 import { IpoDetail } from './pages/IpoDetail';
 import { Landing } from './pages/Landing';
 import { Download } from './pages/Download';
-import { Disclaimer, LegalShell, Privacy, Terms } from './pages/Legal';
+import { Disclaimer, Privacy, Terms } from './pages/Legal';
+import { PublicShell } from './components/PublicShell';
 import { Money } from './pages/Money';
 import { SignIn } from './pages/SignIn';
 
@@ -34,12 +35,16 @@ export function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<SignIn />} />
         {/* Reachable signed out: the update gate sends blocked installs straight here. */}
-        <Route path="/download" element={<LegalShell><Download /></LegalShell>} />
-        {/* Legal pages stay public: people read a privacy policy to decide whether to sign
-            up, not after. */}
-        <Route path="/terms" element={<LegalShell><Terms /></LegalShell>} />
-        <Route path="/privacy" element={<LegalShell><Privacy /></LegalShell>} />
-        <Route path="/disclaimer" element={<LegalShell><Disclaimer /></LegalShell>} />
+        <Route path="/download" element={<PublicShell><Download /></PublicShell>} />
+        {/* The public surface. These are the only pages Google can see, so the GMP board
+            and every IPO page render without an account; the personalised panels inside them
+            fall back to a sign-up prompt. Legal pages are public for the same reason a privacy
+            policy always should be — it is read before signing up, not after. */}
+        <Route path="/gmp" element={<PublicShell><GmpBoard /></PublicShell>} />
+        <Route path="/ipo/:id" element={<PublicShell><IpoDetail /></PublicShell>} />
+        <Route path="/terms" element={<PublicShell><Terms /></PublicShell>} />
+        <Route path="/privacy" element={<PublicShell><Privacy /></PublicShell>} />
+        <Route path="/disclaimer" element={<PublicShell><Disclaimer /></PublicShell>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );

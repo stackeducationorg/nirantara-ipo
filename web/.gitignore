@@ -1,1 +1,5 @@
 .vercel
+
+# Regenerated from the live IPO list on every build (see scripts/generate-sitemap.mjs).
+# A committed sitemap goes stale as soon as a new issue opens.
+public/sitemap.xml

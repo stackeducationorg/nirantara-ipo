@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { Logo } from '../components/IpoCard';
 import { IconInfo, IconTrend } from '../components/Icons';
+import { useSeo } from '../seo';
 import { gmpPerLot, gmpText, gmpTone, money, relativeTime, signedMoney, statusLabel } from '../format';
 
 type Filter = 'all' | 'IPO' | 'SME';
@@ -16,6 +17,13 @@ const FILTERS: { key: Filter; label: string }[] = [
 
 export function GmpBoard() {
   const [filter, setFilter] = useState<Filter>('all');
+
+  useSeo({
+    title: 'Live IPO GMP Today — Grey Market Premium | Nirantara IPO',
+    description:
+      "Today's grey market premium for every open mainboard and SME IPO, highest first, with the expected gain per lot. Refreshed through the day from publicly reported figures.",
+    path: '/gmp',
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['gmp-board'],

@@ -2,11 +2,44 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '../api';
+import { useAuth } from '../auth';
+import { useJsonLd, useSeo, SITE_ORIGIN } from '../seo';
 import { AllotmentPanel } from '../components/AllotmentPanel';
 import { Logo } from '../components/IpoCard';
 import { IconArrowLeft } from '../components/Icons';
 import { gmpText, gmpTone, money, relativeTime, shortDate, statusLabel } from '../format';
 import type { Ipo } from '../types';
+
+/** Search snippet for one issue. Front-loads the facts people actually search for. */
+function ipoDescription(ipo: Ipo): string {
+  const facts: string[] = [];
+  if (ipo.priceText) facts.push(`price band ₹${ipo.priceText}`);
+  if (ipo.lotSize) facts.push(`lot size ${ipo.lotSize}`);
+  if (ipo.gmp !== null) facts.push(`GMP ${gmpText(ipo.gmp)}`);
+  const detail = facts.length ? `${facts.join(', ')}. ` : '';
+  return `${ipo.name} IPO — ${detail}Dates, subscription and allotment, checked across every saved PAN automatically.`;
+}
+
+/**
+ * Stands in for the allotment panel when nobody is signed in. IPO detail pages are public so
+ * they can be indexed, which means this is the first thing most search visitors will see.
+ */
+function AllotmentCta({ ipo }: { ipo: Ipo }) {
+  return (
+    <div className="card card-pad" style={{ marginBottom: 18 }}>
+      <h2 className="section-title" style={{ marginBottom: 8 }}>
+        Check {ipo.name} allotment
+      </h2>
+      <p className="faint" style={{ fontSize: 13.5, lineHeight: 1.65, marginBottom: 14 }}>
+        Save your PANs once and every one of them is checked the moment the registrar
+        publishes — then you are told how many were allotted, without opening anything.
+      </p>
+      <Link to="/login?mode=signup" className="btn primary">
+        Create a free account
+      </Link>
+    </div>
+  );
+}
 
 function Timeline({ ipo }: { ipo: Ipo }) {
   const today = new Date().toISOString().slice(0, 10);
@@ -130,7 +163,39 @@ function Subscription({ ipo }: { ipo: Ipo }) {
 
 export function IpoDetail() {
   const { id = '' } = useParams();
+  const { account } = useAuth();
   const { data: ipo, isLoading } = useQuery({ queryKey: ['ipo', id], queryFn: () => api.ipo(id) });
+
+  // Both hooks run before the early returns below — hooks cannot be called conditionally. The
+  // title is generic while the query is in flight and settles once the issue resolves.
+  useSeo(
+    ipo
+      ? {
+          title: `${ipo.name} IPO — GMP, Price Band & Allotment | Nirantara`,
+          description: ipoDescription(ipo),
+          path: `/ipo/${ipo.id}`,
+          type: 'article',
+        }
+      : {
+          title: 'IPO details | Nirantara IPO',
+          description: 'Live GMP, price band, dates, subscription and allotment for this IPO.',
+          path: `/ipo/${id}`,
+        },
+  );
+
+  useJsonLd(
+    ipo
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_ORIGIN },
+            { '@type': 'ListItem', position: 2, name: 'Live GMP', item: `${SITE_ORIGIN}/gmp` },
+            { '@type': 'ListItem', position: 3, name: `${ipo.name} IPO` },
+          ],
+        }
+      : null,
+  );
 
   if (isLoading) return <div className="skeleton" style={{ height: 300 }} />;
   if (!ipo) return <div className="card empty">IPO not found.</div>;
@@ -203,7 +268,7 @@ export function IpoDetail() {
         )}
       </div>
 
-      <AllotmentPanel ipo={ipo} />
+      {account ? <AllotmentPanel ipo={ipo} /> : <AllotmentCta ipo={ipo} />}
       <GmpChart ipo={ipo} />
       <Subscription ipo={ipo} />
 

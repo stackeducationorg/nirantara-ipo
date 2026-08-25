@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Signed-in surfaces. Everything behind these routes is one person's own data — there is
+# nothing for a crawler to index and no page renders without an account.
+Disallow: /accounts
+Disallow: /money
+Disallow: /alerts
+Disallow: /allotment
+Disallow: /login
+
+Sitemap: https://www.nirantara.cloud/sitemap.xml
