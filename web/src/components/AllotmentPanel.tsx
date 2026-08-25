@@ -13,6 +13,33 @@ const STATUS_TEXT: Record<AllotmentResult['status'], string> = {
   error: 'Check failed',
 };
 
+/**
+ * Only the two outcomes that are actually *about* this application get colour. "No application
+ * found" stays neutral — it is not a bad result, it just means that account did not apply, and
+ * coding it red would make an ordinary row look like a failure.
+ */
+const STATUS_TONE: Record<AllotmentResult['status'], string> = {
+  allotted: 'pos',
+  not_allotted: 'neg',
+  not_applied: '',
+  pending: '',
+  error: 'neg',
+};
+
+/** Allotted first, then the applications that missed out; the rest sink to the bottom. */
+const STATUS_RANK: Record<AllotmentResult['status'], number> = {
+  allotted: 0,
+  not_allotted: 1,
+  pending: 2,
+  error: 3,
+  not_applied: 4,
+};
+
+function byOutcome(a: AllotmentResult, b: AllotmentResult): number {
+  const diff = STATUS_RANK[a.status] - STATUS_RANK[b.status];
+  return diff !== 0 ? diff : (b.allottedQty ?? 0) - (a.allottedQty ?? 0);
+}
+
 function ResultRow({ result }: { result: AllotmentResult }) {
   return (
     <div className="row">
@@ -26,7 +53,9 @@ function ResultRow({ result }: { result: AllotmentResult }) {
         </div>
         <div className="row-sub">
           {result.nameOnRecord ? `${result.nameOnRecord} · ` : ''}
-          {STATUS_TEXT[result.status]}
+          <span className={STATUS_TONE[result.status]} style={{ fontWeight: STATUS_TONE[result.status] ? 560 : undefined }}>
+            {STATUS_TEXT[result.status]}
+          </span>
           {result.status === 'error' && result.message ? ` — ${result.message}` : ''}
         </div>
       </div>
@@ -150,7 +179,13 @@ export function AllotmentPanel({ ipo }: { ipo: Ipo }) {
         </div>
       )}
 
-      {hasResults && <div className="rows" style={{ marginTop: 4 }}>{results.map((r) => <ResultRow key={r.panId} result={r} />)}</div>}
+      {hasResults && (
+        <div className="rows" style={{ marginTop: 4 }}>
+          {[...results].sort(byOutcome).map((r) => (
+            <ResultRow key={r.panId} result={r} />
+          ))}
+        </div>
+      )}
 
       {check.isError && (
         <div style={{ padding: '14px 16px 0' }}>

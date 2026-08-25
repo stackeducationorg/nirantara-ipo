@@ -20,6 +20,23 @@ const STATUS_TEXT: Record<AllotmentResult['status'], string> = {
   error: 'Check failed',
 };
 
+/**
+ * Allotted first, then applications that missed out; everything else sinks. "No application
+ * found" stays uncoloured — that account simply did not apply, which is not a bad outcome.
+ */
+const STATUS_RANK: Record<AllotmentResult['status'], number> = {
+  allotted: 0,
+  not_allotted: 1,
+  pending: 2,
+  error: 3,
+  not_applied: 4,
+};
+
+function byOutcome(a: AllotmentResult, b: AllotmentResult): number {
+  const diff = STATUS_RANK[a.status] - STATUS_RANK[b.status];
+  return diff !== 0 ? diff : (b.allottedQty ?? 0) - (a.allottedQty ?? 0);
+}
+
 function Timeline({ ipo }: { ipo: Ipo }) {
   const t = useTheme();
   const today = new Date().toISOString().slice(0, 10);
@@ -142,7 +159,7 @@ function AllotmentPanel({ ipo }: { ipo: Ipo }) {
         </Banner>
       )}
 
-      {results.map((r) => (
+      {[...results].sort(byOutcome).map((r) => (
         <View
           key={r.panId}
           style={{
@@ -160,7 +177,11 @@ function AllotmentPanel({ ipo }: { ipo: Ipo }) {
               height: 9,
               borderRadius: 5,
               backgroundColor:
-                r.status === 'allotted' ? t.pos : r.status === 'error' ? t.neg : t.textFaint,
+                r.status === 'allotted'
+                  ? t.pos
+                  : r.status === 'not_allotted' || r.status === 'error'
+                    ? t.neg
+                    : t.textFaint,
             }}
           />
           <View style={{ flex: 1 }}>
@@ -169,7 +190,19 @@ function AllotmentPanel({ ipo }: { ipo: Ipo }) {
             </Text>
             <Text style={{ color: t.textFaint, fontSize: 11.5 }} numberOfLines={1}>
               {r.nameOnRecord ? `${r.nameOnRecord} · ` : ''}
-              {STATUS_TEXT[r.status]}
+              <Text
+                style={{
+                  color:
+                    r.status === 'allotted'
+                      ? t.pos
+                      : r.status === 'not_allotted' || r.status === 'error'
+                        ? t.neg
+                        : t.textFaint,
+                  fontWeight: r.status === 'allotted' || r.status === 'not_allotted' ? '600' : '400',
+                }}
+              >
+                {STATUS_TEXT[r.status]}
+              </Text>
             </Text>
           </View>
           {r.status === 'allotted' && (

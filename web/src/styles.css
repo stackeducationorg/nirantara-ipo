@@ -982,8 +982,10 @@ button {
 .status-allotted {
   background: var(--pos);
 }
+/* Applied but missed out — a real outcome the user needs to see at a glance, so it is red
+   rather than the neutral grey it shared with "no application found". */
 .status-not_allotted {
-  background: var(--text-3);
+  background: var(--neg);
 }
 .status-not_applied {
   background: var(--border-strong);
