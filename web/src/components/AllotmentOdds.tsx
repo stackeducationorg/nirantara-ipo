@@ -42,6 +42,8 @@ export function AllotmentOdds({ ipo }: { ipo: Ipo }) {
     enabled: Boolean(account),
   });
   const savedPans = pans?.filter((p) => p.isActive).length ?? 0;
+  // Functional updates: reading `applications` from the closure meant two clicks landing in
+  // one render both computed the same next value, so fast taps silently dropped.
   const [override, setOverride] = useState<number | null>(null);
   const applications = override ?? Math.max(savedPans, 1);
 
@@ -96,7 +98,7 @@ export function AllotmentOdds({ ipo }: { ipo: Ipo }) {
             <span>Applications</span>
             <button
               type="button"
-              onClick={() => setOverride(Math.max(1, applications - 1))}
+              onClick={() => setOverride((prev) => Math.max(1, (prev ?? applications) - 1))}
               disabled={applications <= 1}
               aria-label="One application fewer"
             >
@@ -105,7 +107,7 @@ export function AllotmentOdds({ ipo }: { ipo: Ipo }) {
             <b className="mono">{applications}</b>
             <button
               type="button"
-              onClick={() => setOverride(Math.min(20, applications + 1))}
+              onClick={() => setOverride((prev) => Math.min(20, (prev ?? applications) + 1))}
               disabled={applications >= 20}
               aria-label="One application more"
             >
