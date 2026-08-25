@@ -141,89 +141,99 @@ function renderAllotmentEmail(
     ? `Oversubscription decides most of this, and it is largely luck. Keep applying across your accounts — that is what improves the odds over a year, not any single issue.`
     : `Nothing was allotted, so your blocked funds are released back to your bank automatically, usually within a day or two. Most applications end this way when an issue is heavily oversubscribed — the next one is a fresh draw.`;
 
-  const html = `<!doctype html>
-<html><body style="margin:0;padding:0;background:#f6f6f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f7;padding:28px 12px;">
-    <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+  // Mirrors the site's footer plate. Gmail and Outlook ignore CSS gradients, so every blue
+  // surface carries a solid bgcolor underneath and the gradient is a progressive enhancement.
+  const PLATE_SOLID = '#1433d8';
+  const PLATE_GRAD =
+    'linear-gradient(170deg,#1f40ed 0%,#1433d8 42%,#0a24bd 100%)';
 
-        <tr><td style="padding:20px 26px;border-bottom:1px solid #ececf0;">
+  const html = `<!doctype html>
+<html><body style="margin:0;padding:0;background:#0a24bd;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a24bd" style="background:#0a24bd;padding:26px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;border-radius:16px;overflow:hidden;">
+
+        <!-- header: the footer plate -->
+        <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};background-image:${PLATE_GRAD};padding:26px;">
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
             ${
               logoBuffer
-                ? `<td style="padding-right:10px;vertical-align:middle;">
-                     <img src="cid:${LOGO_CID}" width="30" height="30" alt=""
-                          style="display:block;border-radius:7px;width:30px;height:30px;" />
+                ? `<td style="padding-right:11px;vertical-align:middle;">
+                     <img src="cid:${LOGO_CID}" width="32" height="32" alt=""
+                          style="display:block;border-radius:8px;width:32px;height:32px;" />
                    </td>`
                 : ''
             }
             <td style="vertical-align:middle;">
-              <span style="font-size:15px;font-weight:700;letter-spacing:-.01em;color:#09090b;">Nirantara IPO</span>
+              <div style="font-size:16px;font-weight:700;letter-spacing:-.01em;color:#ffffff;">Nirantara IPO</div>
+              <div style="font-size:12px;color:rgba(255,255,255,.62);margin-top:1px;">${esc(ipo.name)}</div>
             </td>
           </tr></table>
-        </td></tr>
 
-        <tr><td style="padding:28px 26px 6px;">
-          <div style="font-size:13px;color:#8b8b94;margin-bottom:6px;">${esc(ipo.name)}</div>
-          <h1 style="margin:0 0 10px;font-size:24px;line-height:1.25;color:#09090b;letter-spacing:-.02em;">
+          <h1 style="margin:22px 0 8px;font-size:26px;line-height:1.2;color:#ffffff;letter-spacing:-.025em;font-weight:700;">
             ${won ? 'Congratulations' : 'Allotment results are out'}
           </h1>
-          <p style="margin:0;font-size:15px;line-height:1.6;color:#52525b;">Hi ${esc(first)}, ${headline}</p>
+          <p style="margin:0;font-size:14.5px;line-height:1.6;color:rgba(255,255,255,.78);">Hi ${esc(first)}, ${headline}</p>
         </td></tr>
 
-        ${
-          won
-            ? `<tr><td style="padding:22px 26px 0;">
-                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                        style="background:#e7f6ee;border-radius:10px;padding:16px 18px;">
-                   <tr><td>
-                     <div style="font-size:12px;color:#12864c;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Total allotted</div>
-                     <div style="font-size:26px;font-weight:700;color:#0d6b3d;margin-top:3px;">${num(summary.totalShares)} shares</div>
+        <!-- body -->
+        <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:0 26px;">
+
+          ${
+            won
+              ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+                   <tr><td bgcolor="#e7f6ee" style="background:#e7f6ee;border-radius:12px;padding:17px 19px;">
+                     <div style="font-size:11.5px;color:#12864c;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Total allotted</div>
+                     <div style="font-size:27px;font-weight:700;color:#0d6b3d;margin-top:3px;">${num(summary.totalShares)} shares</div>
                      <div style="font-size:13px;color:#12864c;margin-top:2px;">Invested ${money(summary.totalAmount)}</div>
                    </td></tr>
-                 </table>
-               </td></tr>`
-            : ''
-        }
+                 </table>`
+              : ''
+          }
 
-        <tr><td style="padding:22px 26px 0;">
-          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8b8b94;margin-bottom:2px;">Your accounts</div>
+          <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.055em;color:#8b8b94;margin:26px 0 2px;">Your accounts</div>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${accountRows}</table>
-        </td></tr>
 
-        ${
-          won && estGain !== null
-            ? `<tr><td style="padding:24px 26px 0;">
-                 <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8b8b94;margin-bottom:6px;">If it lists at today's grey market premium</div>
+          ${
+            won && estGain !== null
+              ? `<div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.055em;color:#8b8b94;margin:26px 0 4px;">If it lists at today's grey market premium</div>
                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                    ${row('Grey market premium', `₹${gmp} per share`)}
                    ${row('Estimated gain', `${estGain >= 0 ? '+' : ''}${money(estGain)}`, true)}
                    ${row('Estimated value on listing', money(listingValue ?? 0))}
                  </table>
-                 <p style="margin:12px 0 0;padding:11px 13px;background:#fdf4e3;border-radius:8px;font-size:12.5px;line-height:1.55;color:#7a4e08;">
-                   Grey market premium is an unofficial signal that moves daily and is often wrong.
-                   This is an estimate of what today's premium would be worth on your allotment —
-                   not a prediction, and not advice on whether to sell or hold.
-                 </p>
-               </td></tr>`
-            : ''
-        }
+                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:13px;">
+                   <tr><td bgcolor="#fdf4e3" style="background:#fdf4e3;border-radius:9px;padding:12px 14px;font-size:12.5px;line-height:1.55;color:#7a4e08;">
+                     Grey market premium is an unofficial signal that moves daily and is often wrong.
+                     This is an estimate of what today's premium would be worth on your allotment —
+                     not a prediction, and not advice on whether to sell or hold.
+                   </td></tr>
+                 </table>`
+              : ''
+          }
 
-        <tr><td style="padding:22px 26px 0;">
-          <p style="margin:0;font-size:14px;line-height:1.65;color:#52525b;">${closing}</p>
+          <p style="margin:24px 0 0;font-size:14px;line-height:1.65;color:#52525b;">${closing}</p>
+
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 30px;">
+            <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};border-radius:9px;">
+              <a href="https://www.nirantara.cloud/ipo/${esc(ipo.id)}"
+                 style="display:inline-block;padding:13px 26px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">
+                View full details
+              </a>
+            </td></tr>
+          </table>
+
         </td></tr>
 
-        <tr><td style="padding:24px 26px 30px;">
-          <a href="https://www.nirantara.cloud/ipo/${esc(ipo.id)}"
-             style="display:inline-block;background:#e0483d;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;">
-            View full details
-          </a>
-        </td></tr>
-
-        <tr><td style="padding:16px 26px 22px;border-top:1px solid #ececf0;background:#fafafa;">
-          <div style="font-size:11.5px;line-height:1.6;color:#8b8b94;">
+        <!-- footer: the plate again, closing the frame -->
+        <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};background-image:${PLATE_GRAD};padding:22px 26px;">
+          <div style="font-size:15px;font-weight:700;color:rgba(255,255,255,.92);letter-spacing:-.01em;">NIRANTARA</div>
+          <div style="font-size:11.5px;line-height:1.65;color:rgba(255,255,255,.6);margin-top:7px;">
             Sent because you track IPO allotments with Nirantara IPO. Manage alerts in the app under Alerts.<br>
-            Nothing here is investment advice. All rights reserved to Nirantara IPO · developed by stackeducation.in
+            Nothing here is investment advice.
+          </div>
+          <div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:10px;">
+            All rights reserved to Nirantara IPO · developed by stackeducation.in
           </div>
         </td></tr>
 
