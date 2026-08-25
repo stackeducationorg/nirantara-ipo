@@ -46,6 +46,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <div className="pub-foot-links">
             <Link to="/gmp">Live GMP</Link>
             <Link to="/ipo-allotment-status">Allotment check</Link>
+            <Link to="/download">Download app</Link>
             <Link to="/terms">Terms</Link>
             <Link to="/privacy">Privacy</Link>
             <Link to="/disclaimer">Disclaimer</Link>

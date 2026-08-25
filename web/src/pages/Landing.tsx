@@ -466,6 +466,7 @@ export function Landing() {
                 <a href="#features">Features</a>
                 <a href="#how">How it works</a>
                 <a href="#security">Security</a>
+                <Link to="/download">Download for Android</Link>
                 <Link to="/login">Log in</Link>
               </div>
 

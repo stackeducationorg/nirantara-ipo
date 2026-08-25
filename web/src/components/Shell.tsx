@@ -196,6 +196,7 @@ function Footer() {
             <NavLink to="/allotment">Allotment check</NavLink>
             <NavLink to="/money">Money tracker</NavLink>
             <NavLink to="/alerts">Alerts</NavLink>
+            <NavLink to="/download">Download for Android</NavLink>
           </div>
           <div className="footer-col">
             <h4>Data</h4>
