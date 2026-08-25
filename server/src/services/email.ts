@@ -141,6 +141,30 @@ function renderAllotmentEmail(
     ? `Oversubscription decides most of this, and it is largely luck. Keep applying across your accounts — that is what improves the odds over a year, not any single issue.`
     : `Nothing was allotted, so your blocked funds are released back to your bank automatically, usually within a day or two. Most applications end this way when an issue is heavily oversubscribed — the next one is a fresh draw.`;
 
+  /**
+   * The site's footer stars, rebuilt for email. The real ones are clip-path shapes on a CSS
+   * animation, none of which survives a mail client — and Gmail strips inline SVG — so these
+   * are glyphs in a fixed side column, varied in size and opacity to suggest the same drift.
+   */
+  const starColumn = (align: 'left' | 'right') => {
+    const stars: [string, number, number][] = [
+      ['✦', 13, 0.5],
+      ['✧', 9, 0.3],
+      ['✦', 17, 0.65],
+      ['✧', 8, 0.22],
+      ['✦', 11, 0.42],
+      ['✧', 14, 0.3],
+    ];
+    return stars
+      .map(
+        ([glyph, size, alpha], i) => `<div style="font-size:${size}px;line-height:1.9;color:rgba(255,255,255,${alpha});text-align:${
+          // Nudged alternately so the column does not read as a straight line.
+          i % 2 === 0 ? align : align === 'left' ? 'right' : 'left'
+        };">${glyph}</div>`,
+      )
+      .join('');
+  };
+
   // Mirrors the site's footer plate. Gmail and Outlook ignore CSS gradients, so every blue
   // surface carries a solid bgcolor underneath and the gradient is a progressive enhancement.
   const PLATE_SOLID = '#1433d8';
@@ -154,7 +178,10 @@ function renderAllotmentEmail(
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;border-radius:16px;overflow:hidden;">
 
         <!-- header: the footer plate -->
-        <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};background-image:${PLATE_GRAD};padding:26px;">
+        <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};background-image:${PLATE_GRAD};padding:22px 14px;">
+         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td width="34" valign="top" style="width:34px;">${starColumn('left')}</td>
+          <td valign="top" style="padding:4px 6px;">
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
             ${
               logoBuffer
@@ -174,6 +201,9 @@ function renderAllotmentEmail(
             ${won ? 'Congratulations' : 'Allotment results are out'}
           </h1>
           <p style="margin:0;font-size:14.5px;line-height:1.6;color:rgba(255,255,255,.78);">Hi ${esc(first)}, ${headline}</p>
+          </td>
+          <td width="34" valign="top" style="width:34px;">${starColumn('right')}</td>
+         </tr></table>
         </td></tr>
 
         <!-- body -->
@@ -226,7 +256,10 @@ function renderAllotmentEmail(
         </td></tr>
 
         <!-- footer: the plate again, closing the frame -->
-        <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};background-image:${PLATE_GRAD};padding:22px 26px;">
+        <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};background-image:${PLATE_GRAD};padding:20px 14px;">
+         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td width="34" valign="top" style="width:34px;">${starColumn('left')}</td>
+          <td valign="top" style="padding:4px 6px;">
           <div style="font-size:15px;font-weight:700;color:rgba(255,255,255,.92);letter-spacing:-.01em;">NIRANTARA</div>
           <div style="font-size:11.5px;line-height:1.65;color:rgba(255,255,255,.6);margin-top:7px;">
             Sent because you track IPO allotments with Nirantara IPO. Manage alerts in the app under Alerts.<br>
@@ -235,6 +268,9 @@ function renderAllotmentEmail(
           <div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:10px;">
             All rights reserved to Nirantara IPO · developed by stackeducation.in
           </div>
+          </td>
+          <td width="34" valign="top" style="width:34px;">${starColumn('right')}</td>
+         </tr></table>
         </td></tr>
 
       </table>
