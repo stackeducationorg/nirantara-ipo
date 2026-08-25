@@ -94,6 +94,12 @@ export const api = {
 
   me: () => call<Account & { deviceCount: number; panCount: number }>('/auth/me'),
 
+  /** Public: what the current release is, used by the download page. */
+  appVersion: () =>
+    call<{ minVersion: string; latestVersion: string; downloadUrl: string; message?: string }>(
+      '/app/version',
+    ),
+
   dashboard: () => call<Dashboard>('/ipos/dashboard'),
   ipos: (params?: { status?: string; category?: string }) => {
     const q = new URLSearchParams();

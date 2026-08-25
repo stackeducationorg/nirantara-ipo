@@ -1493,3 +1493,84 @@ button {
 }
 
 .btn.pos { color: var(--pos); }
+
+/* ---------------------------------------------------------------- download */
+
+.dl-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 22px 80px;
+}
+
+.dl-title {
+  font-size: clamp(28px, 6vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+
+.dl-sub {
+  color: var(--text-2);
+  font-size: 15.5px;
+  line-height: 1.6;
+  margin: 0 0 30px;
+}
+
+.dl-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 30px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 16px;
+  font-weight: 600;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.dl-button:hover {
+  background: var(--accent-hover);
+}
+
+.dl-button:active {
+  transform: translateY(1px);
+}
+
+.dl-meta {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.dl-steps {
+  margin-top: 38px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+}
+
+.dl-steps h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.dl-steps ol {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-2);
+  font-size: 14.5px;
+  line-height: 1.9;
+}
+
+.dl-note {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--warn-subtle);
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.55;
+}

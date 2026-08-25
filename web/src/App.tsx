@@ -8,6 +8,7 @@ import { GmpBoard } from './pages/GmpBoard';
 import { Home } from './pages/Home';
 import { IpoDetail } from './pages/IpoDetail';
 import { Landing } from './pages/Landing';
+import { Download } from './pages/Download';
 import { Disclaimer, LegalShell, Privacy, Terms } from './pages/Legal';
 import { Money } from './pages/Money';
 import { SignIn } from './pages/SignIn';
@@ -32,6 +33,8 @@ export function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<SignIn />} />
+        {/* Reachable signed out: the update gate sends blocked installs straight here. */}
+        <Route path="/download" element={<LegalShell><Download /></LegalShell>} />
         {/* Legal pages stay public: people read a privacy policy to decide whether to sign
             up, not after. */}
         <Route path="/terms" element={<LegalShell><Terms /></LegalShell>} />
@@ -52,6 +55,7 @@ export function App() {
         <Route path="/accounts" element={<Accounts />} />
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/ipo/:id" element={<IpoDetail />} />
+        <Route path="/download" element={<Download />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/disclaimer" element={<Disclaimer />} />

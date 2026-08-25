@@ -20,10 +20,13 @@ export default {
     slug: 'niranthar-ipo',
     // Account that owns the EAS project referenced by extra.eas.projectId below.
     owner: 'rahulrgadgimata',
-    // Release version. Scheme is major.minor.patch.build — bump the last part for every
-    // APK you hand out, and bump android.versionCode to match. Note: iOS only accepts three
-    // numeric parts, so an App Store build needs ios.version set separately (e.g. '0.0.3').
-    version: '0.0.0.3',
+    // Release version. Bump this and android.versionCode for every APK you hand out.
+    //
+    // It must only ever go UP: the update gate compares it numerically against the API's
+    // minimum, and builds already in the wild report 1.0.0. A 0.0.0.x scheme would compare
+    // as *older* than those, so no existing install would ever be prompted to update.
+    // Three numeric parts also keeps it valid for iOS.
+    version: '1.0.1',
     orientation: 'portrait',
     scheme: 'niranthar',
     userInterfaceStyle: 'automatic',
@@ -45,7 +48,7 @@ export default {
       // uploaded to EAS (npx eas credentials) so Expo's servers are allowed to send.
       googleServicesFile: './google-services.json',
       // Must be an integer and must increase for every Play Store upload.
-      versionCode: 3,
+      versionCode: 4,
       adaptiveIcon: {
         foregroundImage: './assets/icon.png',
         backgroundColor: '#ffffff',

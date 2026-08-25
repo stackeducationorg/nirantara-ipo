@@ -243,7 +243,12 @@ export function Landing() {
               </a>
             </div>
 
-            <div className="lp-cta-note">No card required. Takes about ten seconds.</div>
+            <div className="lp-cta-note">
+              No card required. Takes about ten seconds. ·{' '}
+              <Link to="/download" style={{ textDecoration: 'underline' }}>
+                Get the Android app
+              </Link>
+            </div>
           </div>
 
           <div className="lp-hero-showcase">
