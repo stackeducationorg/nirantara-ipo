@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { Logo } from '../components/IpoCard';
 import { IconInfo, IconTrend } from '../components/Icons';
-import { gmpText, gmpTone, money, relativeTime, statusLabel } from '../format';
+import { gmpPerLot, gmpText, gmpTone, money, relativeTime, signedMoney, statusLabel } from '../format';
 
 type Filter = 'all' | 'IPO' | 'SME';
 
@@ -58,6 +58,8 @@ export function GmpBoard() {
           {items.map((ipo) => {
             const tone = gmpTone(ipo.gmp);
             const toneClass = tone === 'faint' ? 'faint' : tone === 'up' ? 'pos' : 'neg';
+            // GMP is quoted per share; per lot is the figure someone applying actually needs.
+            const perLot = gmpPerLot(ipo.gmp, ipo.lotSize);
 
             return (
               <Link key={ipo.id} to={`/ipo/${ipo.id}`} className="ipo-row">
@@ -78,6 +80,11 @@ export function GmpBoard() {
                   <div className={`mono ${toneClass}`} style={{ fontSize: 15, fontWeight: 620 }}>
                     {gmpText(ipo.gmp)}
                   </div>
+                  {perLot !== null && perLot !== 0 && (
+                    <div className={`mono ${toneClass}`} style={{ fontSize: 12.5, fontWeight: 560 }}>
+                      {signedMoney(perLot)}/lot
+                    </div>
+                  )}
                   <div className="ipo-right-sub mono">
                     {[
                       ipo.gmp !== 0 && ipo.gmpPercent !== null ? `${ipo.gmpPercent}%` : null,

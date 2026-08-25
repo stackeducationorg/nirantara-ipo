@@ -73,6 +73,22 @@ export function gmpText(gmp: number | null | undefined): string {
   return gmp > 0 ? `+${gmp}` : String(gmp);
 }
 
+/**
+ * What one lot would be worth at the current grey market premium — GMP is quoted per share,
+ * which is not the number an applicant actually cares about. Null when either input is
+ * missing, since a lot size of zero would silently render a confident ₹0.
+ */
+export function gmpPerLot(gmp: number | null | undefined, lotSize: number | null | undefined): number | null {
+  if (gmp === null || gmp === undefined || !lotSize) return null;
+  return gmp * lotSize;
+}
+
+/** Signed currency, so a negative premium reads as a loss rather than an amount. */
+export function signedMoney(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—';
+  return value > 0 ? `+${money(value)}` : money(value);
+}
+
 export function initials(name: string): string {
   return name
     .split(/\s+/)
