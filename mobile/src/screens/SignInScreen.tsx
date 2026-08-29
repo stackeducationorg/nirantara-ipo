@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ApiError } from '../api';
 import { useAuth } from '../auth';
+import { GoogleButton } from '../components/GoogleButton';
 import { Banner, Button, Card } from '../components';
 import { useTheme } from '../theme';
 
@@ -9,7 +10,7 @@ type Mode = 'signin' | 'signup' | 'pair';
 
 export function SignInScreen() {
   const t = useTheme();
-  const { login, register, pair } = useAuth();
+  const { login, register, pair, googleSignIn } = useAuth();
 
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
@@ -72,6 +73,19 @@ export function SignInScreen() {
           </Text>
           <Text style={{ color: t.textDim, fontSize: 13.5, marginTop: 4 }}>{heading.sub}</Text>
         </View>
+
+        {mode !== 'pair' && (
+          <GoogleButton
+            busy={busy}
+            onIdToken={(idToken) => {
+              setError(null);
+              setBusy(true);
+              googleSignIn(idToken)
+                .catch((err) => setError(err instanceof Error ? err.message : 'Could not sign in with Google.'))
+                .finally(() => setBusy(false));
+            }}
+          />
+        )}
 
         <Card style={{ padding: 18 }}>
           {error && <Banner tone="error">{error}</Banner>}

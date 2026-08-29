@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { call, post } from './api';
 import type {
   Application,
@@ -29,6 +30,8 @@ export const api = {
   register: (email: string, password: string, name?: string) =>
     post<AuthResult>('/auth/register', { email, password, name, platform: 'android' }),
   pair: (syncKey: string) => post<AuthResult>('/auth/pair', { syncKey, platform: 'android' }),
+  google: (idToken: string) =>
+    post<AuthResult>('/auth/google', { idToken, platform: Platform.OS === 'ios' ? 'ios' : 'android' }),
   logout: () => post<{ ok: true }>('/auth/logout'),
 
   me: () => call<Account & { deviceCount: number; panCount: number }>('/auth/me'),

@@ -65,6 +65,12 @@ export const config = {
   // Google Sign-In. Empty disables the endpoint entirely rather than accepting
   // unverifiable tokens, so a missing value fails closed.
   googleClientId: optional('GOOGLE_CLIENT_ID'),
+  /**
+   * Native sign-in returns an ID token whose `aud` is the platform's own client id, not the
+   * web one — so every accepted client has to be listed or the app's tokens are rejected.
+   */
+  googleAndroidClientId: optional('GOOGLE_ANDROID_CLIENT_ID'),
+  googleIosClientId: optional('GOOGLE_IOS_CLIENT_ID'),
 
   /** Comma-separated origins allowed to call the API. Empty = allow all (dev). */
   corsOrigins: optional('CORS_ORIGINS')

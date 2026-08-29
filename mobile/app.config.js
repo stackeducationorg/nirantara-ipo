@@ -59,6 +59,14 @@ export default {
     plugins: [['expo-notifications', { color: '#e0483d' }]],
     extra: {
       apiBase,
+      // Both are needed: the Android id is what Google checks against this package and
+      // signing certificate, the web id is what makes it return an ID token the API can verify.
+      googleWebClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+        '1063536050082-cvgs9eo0jj7bisk9j89i6gl76bdfjrtk.apps.googleusercontent.com',
+      googleAndroidClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ||
+        '1063536050082-ea529lnlcpe7qgkgfvete708ffjtgdeh.apps.googleusercontent.com',
       eas: {
         // Must be a real id, not undefined: push.ts reads it to call getExpoPushTokenAsync,
         // which throws without one — that is why no device ever registered for notifications.

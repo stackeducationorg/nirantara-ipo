@@ -21,13 +21,22 @@ export interface GoogleIdentity {
 export class GoogleAuthError extends Error {}
 
 export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdentity> {
-  if (!config.googleClientId) {
+  // Any client we issue tokens for is acceptable; the check is that it is one of *ours*,
+  // not that it is a specific one. Without the native ids listed, sign-ins from the app
+  // fail verification even though the token is perfectly valid.
+  const audience = [
+    config.googleClientId,
+    config.googleAndroidClientId,
+    config.googleIosClientId,
+  ].filter((v): v is string => Boolean(v));
+
+  if (audience.length === 0) {
     throw new GoogleAuthError('Google sign-in is not configured on this server');
   }
 
   let payload;
   try {
-    const ticket = await client.verifyIdToken({ idToken, audience: config.googleClientId });
+    const ticket = await client.verifyIdToken({ idToken, audience });
     payload = ticket.getPayload();
   } catch (err) {
     // The message from the library can name the expected audience, so it is not passed on.

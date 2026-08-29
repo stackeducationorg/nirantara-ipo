@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { db } from '../db/index.js';
 import { getRegistrar, resolveRegistrar } from '../registrars/index.js';
 import type { AllotmentStatus, CaptchaAnswer, DematAccount } from '../registrars/types.js';
+import { CaptchaRequiredError } from '../registrars/types.js';
 import { decryptPan } from '../util/crypto.js';
 import { mapLimit } from '../util/http.js';
 import { logger } from '../util/logger.js';
@@ -260,8 +261,6 @@ export async function checkAllotmentForAccount(
   const ipo = getIpo(ipoId);
   if (!ipo) throw new Error('IPO not found');
 
-  // A captcha answer is spent on a single lookup, so a captcha-gated check names the one
-  // PAN it applies to instead of sweeping the whole book with a token that is already used.
   const pans = opts.panId ? getPans(accountId).filter((p) => p.id === opts.panId) : getPans(accountId);
   if (pans.length === 0) return summarise(ipo, []);
 
@@ -270,7 +269,37 @@ export async function checkAllotmentForAccount(
 
   // Browser-driven registrars are serialised anyway; going wide only queues up timeouts.
   const concurrency = adapter?.driver === 'browser' ? 1 : 4;
-  const results = await mapLimit(pans, concurrency, (pan) => checkOne(withRegistrar, pan, opts.captcha));
+
+  let results: AllotmentResult[];
+
+  if (opts.captcha && pans.length > 1) {
+    /**
+     * One solved captcha, applied to the whole book.
+     *
+     * Asking per PAN meant twenty saved accounts needed twenty captchas, which nobody is
+     * going to sit through. The registrar may or may not accept a token more than once —
+     * it is not documented either way — so this tries, and the moment a reuse is refused
+     * it stops and reports what it already has rather than burning the rest of the book on
+     * a token that is clearly spent.
+     *
+     * Worst case is therefore the old behaviour: one PAN checked per solve. Best case is
+     * one solve for all of them.
+     */
+    results = [];
+    for (const pan of pans) {
+      try {
+        results.push(await checkOne(withRegistrar, pan, opts.captcha));
+      } catch (err) {
+        if (err instanceof CaptchaRequiredError) {
+          log.info(`${withRegistrar.name}: captcha token spent after ${results.length} of ${pans.length}`);
+          break;
+        }
+        throw err;
+      }
+    }
+  } else {
+    results = await mapLimit(pans, concurrency, (pan) => checkOne(withRegistrar, pan, opts.captcha));
+  }
 
   // Settle the money ledger from these results so refunds appear without any user action.
   reconcileFromAllotment(accountId, ipoId);
