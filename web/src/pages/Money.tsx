@@ -34,6 +34,15 @@ export function Money() {
 
   const selected = selectable.find((i) => i.id === selectedId) ?? null;
 
+  const resetIpo = useMutation({
+    mutationFn: (ipoId: string) => api.resetIpoApplications(ipoId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['money-summary'] });
+      void queryClient.invalidateQueries({ queryKey: ['money-by-ipo'] });
+      void queryClient.invalidateQueries({ queryKey: ['applications'] });
+    },
+  });
+
   const refundIpo = useMutation({
     mutationFn: (ipoId: string) => api.markIpoRefund(ipoId, true),
     onSuccess: () => {
@@ -188,6 +197,29 @@ export function Money() {
                         {row.refundStatus === 'blocked' ? 'Got money back' : 'Got it back'}
                       </button>
                     )}
+                    {/* The escape hatch: clears this IPO's ledger whatever state it is in,
+                        including refunds already confirmed, so a mis-entry can be redone. */}
+                    <button
+                      className="btn sm ghost"
+                      style={{ marginTop: 6 }}
+                      disabled={resetIpo.isPending}
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Reset ${row.ipoName}?
+
+This removes all ${row.accounts} account entr${
+                              row.accounts === 1 ? 'y' : 'ies'
+                            } for this IPO, including any refund you already marked as received. It cannot be undone.`,
+                          )
+                        ) {
+                          resetIpo.mutate(row.ipoId);
+                        }
+                      }}
+                    >
+                      {resetIpo.isPending && <span className="spinner" />}
+                      Reset
+                    </button>
                   </div>
                 </div>
               ))}

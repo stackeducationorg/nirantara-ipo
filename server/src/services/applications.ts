@@ -241,6 +241,20 @@ export function markIpoRefund(accountId: string, ipoId: string, received: boolea
 }
 
 /**
+ * Removes every application this account recorded against one IPO, whatever state it is in —
+ * including refunds already confirmed. This is the deliberate "start this issue over" escape
+ * hatch, separate from markIpoRefund which only moves money between states.
+ *
+ * Allotment results are left alone: they are the registrar's answer, not the user's ledger,
+ * and re-recording an application should settle against them again rather than lose them.
+ */
+export function resetIpoApplications(accountId: string, ipoId: string): number {
+  return db
+    .prepare('DELETE FROM applications WHERE account_id = ? AND ipo_id = ?')
+    .run(accountId, ipoId).changes;
+}
+
+/**
  * Reconciles the ledger against freshly-checked allotment results: how many shares were
  * allotted, how much of the block became a purchase, and how much is owed back.
  *

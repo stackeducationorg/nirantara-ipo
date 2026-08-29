@@ -162,6 +162,10 @@ export const api = {
     }),
   applyAll: (ipoId: string, lots: number) =>
     post<Application[]>(`/applications/ipo/${ipoId}/apply-all`, { lots }),
+  /** Wipes this account's ledger for one IPO, settled refunds included. */
+  resetIpoApplications: (ipoId: string) =>
+    call<{ ok: true; removed: number }>(`/applications/ipo/${ipoId}`, { method: 'DELETE' }),
+
   /** Settles every outstanding refund for one IPO in a single call. */
   markIpoRefund: (ipoId: string, received = true) =>
     post<{ ok: true; updated: number }>(`/applications/ipo/${ipoId}/refund`, { received }),

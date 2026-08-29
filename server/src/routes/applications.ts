@@ -7,6 +7,7 @@ import {
   applyAll,
   listApplications,
   markIpoRefund,
+  resetIpoApplications,
   markRefund,
   moneyByIpo,
   moneySummary,
@@ -116,6 +117,15 @@ applicationsRouter.post('/ipo/:ipoId/apply-all', (req, res) => {
 
   try {
     res.json(applyAll(req.accountId!, req.params.ipoId, parsed.data.lots, parsed.data.category));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** Clears this account's whole ledger for one IPO, including settled refunds. */
+applicationsRouter.delete('/ipo/:ipoId', (req, res) => {
+  try {
+    res.json({ ok: true, removed: resetIpoApplications(req.accountId!, req.params.ipoId) });
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }

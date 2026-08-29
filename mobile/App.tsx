@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { registerForPush } from './src/push';
 import { UpdateGate } from './src/UpdateGate';
 import { AuthProvider, useAuth } from './src/auth';
 import {
@@ -158,6 +159,30 @@ function Gate() {
   const { account, loading } = useAuth();
   const t = useTheme();
   const insets = useSafeAreaInsets();
+
+  /**
+   * Ask for notification permission once the user is signed in, then hand the Expo push
+   * token to the API. Without this the app never registers at all — every device row had a
+   * null expo_token and the watcher had nowhere to deliver, so allotment alerts went to
+   * "0 device(s)" no matter how many phones had the app installed.
+   *
+   * Deliberately after sign-in rather than on first launch: the token is stored against an
+   * account, and a permission prompt before the user knows what the app does gets declined.
+   */
+  useEffect(() => {
+    if (!account) return;
+    let cancelled = false;
+    registerForPush()
+      .then((r) => {
+        if (!cancelled && !r.ok) console.log('[push] not registered:', r.reason);
+      })
+      .catch(() => {
+        // Never surface this: a failed registration must not block using the app.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [account?.id]);
 
   // Hold the first paint until the stored session resolves, so sign-in never flashes for an
   // already-authenticated user.
