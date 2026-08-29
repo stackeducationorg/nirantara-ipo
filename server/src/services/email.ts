@@ -172,9 +172,25 @@ function renderAllotmentEmail(
     'linear-gradient(170deg,#1f40ed 0%,#1433d8 42%,#0a24bd 100%)';
 
   const html = `<!doctype html>
-<html><body style="margin:0;padding:0;background:#0a24bd;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a24bd" style="background:#0a24bd;padding:26px 12px;">
-    <tr><td align="center">
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
+  <style>
+    /* Gmail discards <body>, so these hang off the wrapper below instead. Kept minimal —
+       most clients strip <style> too, which is why every rule that matters is inline. */
+    html, body { margin:0 !important; padding:0 !important; width:100% !important; background:#0a24bd !important; }
+    .plate-bg { background:#0a24bd !important; }
+  </style>
+</head>
+<body style="margin:0;padding:0;width:100%;background:#0a24bd;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <!-- Gmail strips <body> and reparents the content, so the outermost surviving element has
+       to carry the colour or the message renders on the client's own white. -->
+  <div class="plate-bg" style="background:#0a24bd;margin:0;padding:0;width:100%;">
+  <table role="presentation" width="100%" height="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a24bd" class="plate-bg" style="background:#0a24bd;margin:0;padding:0;width:100%;border-collapse:collapse;">
+    <tr><td align="center" bgcolor="#0a24bd" style="background:#0a24bd;padding:26px 12px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;border-radius:16px;overflow:hidden;">
 
         <!-- header: the footer plate -->
@@ -276,6 +292,7 @@ function renderAllotmentEmail(
       </table>
     </td></tr>
   </table>
+  </div>
 </body></html>`;
 
   const text = [
