@@ -114,9 +114,9 @@ function renderAllotmentEmail(
       (r) => `
       <tr>
         <td style="padding:10px 0;border-top:1px solid #ececf0;">
-          <div style="font-weight:600;font-size:14px;color:#09090b;">${esc(r.label)}</div>
+          <div style="font-weight:600;font-size:14px;color:#09090b;">${esc(r.nameOnRecord ?? r.label)}</div>
           <div style="font-size:12px;color:#8b8b94;">${esc(r.panMasked)}${
-            r.nameOnRecord ? ' · ' + esc(r.nameOnRecord) : ''
+            r.nameOnRecord ? ' · ' + esc(r.label) : ''
           }</div>
         </td>
         <td style="padding:10px 0;border-top:1px solid #ececf0;text-align:right;white-space:nowrap;">

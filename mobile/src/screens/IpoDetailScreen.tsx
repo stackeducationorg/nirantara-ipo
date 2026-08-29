@@ -185,11 +185,12 @@ function AllotmentPanel({ ipo }: { ipo: Ipo }) {
             }}
           />
           <View style={{ flex: 1 }}>
-            <Text style={{ color: t.text, fontWeight: '600', fontSize: 14 }}>
-              {r.label} <Text style={{ color: t.textFaint, fontWeight: '400' }}>{r.panMasked}</Text>
+            <Text style={{ color: t.text, fontWeight: '600', fontSize: 14 }} numberOfLines={1}>
+              {r.nameOnRecord ?? r.label}{' '}
+              <Text style={{ color: t.textFaint, fontWeight: '400' }}>{r.panMasked}</Text>
             </Text>
             <Text style={{ color: t.textFaint, fontSize: 11.5 }} numberOfLines={1}>
-              {r.nameOnRecord ? `${r.nameOnRecord} · ` : ''}
+              {r.nameOnRecord ? `${r.label} · ` : ''}
               <Text
                 style={{
                   color:

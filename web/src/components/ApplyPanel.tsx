@@ -211,7 +211,7 @@ export function ApplyPanel({ ipo }: { ipo: Ipo }) {
             <div className="row" key={account.panId}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="row-title">
-                  {account.label}
+                  {account.holderName ?? account.label}
                   <span className="faint mono" style={{ fontWeight: 400, marginLeft: 8, fontSize: 12.5 }}>
                     {account.panMasked}
                   </span>
