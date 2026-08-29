@@ -82,7 +82,10 @@
 html,
 body,
 #root {
-  height: 100%;
+  /* min-height, never height. A fixed 100% pins these to the viewport, so on a page taller
+     than the screen the flex container below stops there — and the footer's margin-top:auto
+     then pushes it to the bottom of that box, landing it in the middle of the page. */
+  min-height: 100%;
 }
 
 body {
@@ -130,7 +133,11 @@ button {
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  /* vh is measured against the largest viewport, so on mobile it stays taller than the
+     visible area while the address bar is showing — the footer drifts as the bar collapses
+     mid-scroll. dvh tracks the real height; vh is kept first as the fallback. */
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .header {

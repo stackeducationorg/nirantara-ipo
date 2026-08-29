@@ -174,8 +174,10 @@ export function Money() {
                           ? `${money(row.refundAmount)} back`
                           : 'awaiting allotment'}
                     </div>
-                    {/* One credit covers every application to an issue, so this settles them together. */}
-                    {row.refundStatus === 'refund_pending' && (
+                    {/* One credit covers every application to an issue, so this settles them
+                        together. Offered while still 'blocked' too: money can come back before
+                        the registrar answers, and the ledger should not wait on that. */}
+                    {(row.refundStatus === 'refund_pending' || row.refundStatus === 'blocked') && (
                       <button
                         className="btn sm"
                         style={{ marginTop: 6 }}
@@ -183,7 +185,7 @@ export function Money() {
                         onClick={() => refundIpo.mutate(row.ipoId)}
                       >
                         {refundIpo.isPending && <span className="spinner" />}
-                        Got it back
+                        {row.refundStatus === 'blocked' ? 'Got money back' : 'Got it back'}
                       </button>
                     )}
                   </div>

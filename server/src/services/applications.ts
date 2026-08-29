@@ -211,11 +211,25 @@ export function markRefund(accountId: string, applicationId: string, received: b
  * simply have nothing owed back.
  */
 export function markIpoRefund(accountId: string, ipoId: string, received: boolean): number {
+  // 'blocked' is included deliberately. Money can come back before — or without — the
+  // registrar ever answering: an application is withdrawn, a mandate lapses, or the user
+  // simply sees the credit in their bank first. Requiring an allotment result before the
+  // refund could be recorded made the ledger depend on the allotment flow, which is exactly
+  // what it should not do.
+  //
+  // 'debited' is excluded: those shares were allotted, so nothing is owed back.
   const result = db
     .prepare(
       `UPDATE applications
-          SET refund_status = ?, settled_at = ?, updated_at = datetime('now')
-        WHERE account_id = ? AND ipo_id = ? AND refund_status IN ('refund_pending', 'refund_received')`,
+          SET refund_status = ?,
+              refund_amount = CASE
+                WHEN refund_amount IS NOT NULL AND refund_amount > 0 THEN refund_amount
+                ELSE COALESCE(amount_blocked, 0)
+              END,
+              settled_at = ?,
+              updated_at = datetime('now')
+        WHERE account_id = ? AND ipo_id = ?
+          AND refund_status IN ('blocked', 'refund_pending', 'refund_received')`,
     )
     .run(
       received ? 'refund_received' : 'refund_pending',

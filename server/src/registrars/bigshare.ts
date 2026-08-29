@@ -44,8 +44,11 @@ async function check({ companyCode, pan, demat, by }: AllotmentQuery): Promise<A
   // 8-digit client id, so the stored "IN..." value is cut in half here.
   const nsdl = useDemat && demat!.depository === 'NSDL';
 
-  // The on-page captcha is generated in JS and stored in sessionStorage — it is never sent to
-  // or verified by the server, so the page method accepts a direct lookup.
+  // Bigshare added a server-verified captcha: Captcha.ashx issues a signed token with a
+  // base64 PNG, and FetchIpodetails now rejects any request without a matching answer.
+  // Previously the captcha was drawn client-side and never checked, which is why a direct
+  // call used to work. An image challenge cannot be answered from a server, so this is
+  // reported plainly instead of surfacing as an opaque HTTP 500.
   const payload = {
     Applicationno: '',
     Company: companyCode,
@@ -58,10 +61,23 @@ async function check({ companyCode, pan, demat, by }: AllotmentQuery): Promise<A
     lang: 'en',
   };
 
-  const json = await postJson<BigshareResponse>(API, payload, {
-    headers: { Referer: STATUS_PAGE, Origin: 'https://ipo.bigshareonline.com' },
-    timeoutMs: 25_000,
-  });
+  let json: BigshareResponse;
+  try {
+    json = await postJson<BigshareResponse>(API, payload, {
+      headers: { Referer: STATUS_PAGE, Origin: 'https://ipo.bigshareonline.com' },
+      timeoutMs: 25_000,
+    });
+  } catch (err) {
+    const status = (err as { status?: number }).status;
+    // A 500 here is the captcha rejection; Bigshare does not distinguish it in the body.
+    if (status === 500 || status === 400) {
+      throw new RegistrarError(
+        'Bigshare now requires a captcha for allotment lookups — check directly at ipo.bigshareonline.com',
+        false,
+      );
+    }
+    throw err;
+  }
 
   const d = json.d;
   if (!d) throw new RegistrarError('Bigshare returned an empty response');
