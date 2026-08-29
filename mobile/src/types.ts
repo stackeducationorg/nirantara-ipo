@@ -27,6 +27,8 @@ export interface Ipo {
   gmpUpdatedAt: string | null;
   daysToClose: number | null;
   daysToAllotment: number | null;
+  /** True once the registrar is actually answering allotment queries for this issue. */
+  allotmentLive: boolean;
   gmpHistory?: GmpPoint[];
 }
 
@@ -48,7 +50,10 @@ export interface Dashboard {
 export interface Pan {
   id: string;
   label: string;
-  pan: string;
+  /** Masked PAN, or null when the entry was saved with only a demat number. */
+  pan: string | null;
+  demat: string | null;
+  depository: 'NSDL' | 'CDSL' | null;
   holderName: string | null;
   isActive: boolean;
   createdAt: string;

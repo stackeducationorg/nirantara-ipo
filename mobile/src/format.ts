@@ -73,6 +73,22 @@ export function gmpText(gmp: number | null | undefined): string {
   return gmp > 0 ? `+${gmp}` : String(gmp);
 }
 
+/**
+ * What one lot is worth at the current premium. GMP is quoted per share, which is not the
+ * number an applicant needs — a premium of 30 means nothing until you know the lot is 283
+ * shares. Null when either input is missing, since a zero lot size would render a confident 0.
+ */
+export function gmpPerLot(gmp: number | null | undefined, lotSize: number | null | undefined): number | null {
+  if (gmp === null || gmp === undefined || !lotSize) return null;
+  return gmp * lotSize;
+}
+
+/** Signed currency, so a negative premium reads as a loss rather than an amount. */
+export function signedMoney(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—';
+  return value > 0 ? `+${money(value)}` : money(value);
+}
+
 export function initials(name: string): string {
   return name
     .split(/\s+/)

@@ -1,13 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Card, Empty, Logo, SectionTitle, Stat, makeStyles } from '../components';
-import { REFUND_LABEL } from '../components/ApplyPanel';
+import { ApplyPanel, REFUND_LABEL } from '../components/ApplyPanel';
 import { money, num, shortDate } from '../format';
 import { IconWallet } from '../icons';
 import { useAppNavigation } from '../navigation';
 import { api } from '../queries';
 import { useTheme } from '../theme';
-import type { RefundStatus } from '../types';
+import type { Ipo, RefundStatus } from '../types';
 
 export function MoneyScreen() {
   const t = useTheme();
@@ -19,6 +20,25 @@ export function MoneyScreen() {
     queryFn: api.moneySummary,
   });
   const { data: rows } = useQuery({ queryKey: ['money-by-ipo'], queryFn: api.moneyByIpo });
+  const { data: dashboard } = useQuery({ queryKey: ['dashboard'], queryFn: api.dashboard });
+  const queryClient = useQueryClient();
+
+  // Recording an application lives here rather than on the IPO screen, so everything to do
+  // with money is in one place — matching the website.
+  const [selectedId, setSelectedId] = useState('');
+  const selectable: Ipo[] = useMemo(
+    () => (dashboard ? [...dashboard.open, ...dashboard.awaitingAllotment, ...dashboard.upcoming] : []),
+    [dashboard],
+  );
+  const selected = selectable.find((i) => i.id === selectedId) ?? null;
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['money-summary'] });
+    void queryClient.invalidateQueries({ queryKey: ['money-by-ipo'] });
+    void queryClient.invalidateQueries({ queryKey: ['applications'] });
+  };
+  const refundIpo = useMutation({ mutationFn: (id: string) => api.markIpoRefund(id, true), onSuccess: invalidate });
+  const resetIpo = useMutation({ mutationFn: (id: string) => api.resetIpoApplications(id), onSuccess: invalidate });
 
   const badgeColor = (status: RefundStatus) => {
     if (status === 'refund_pending') return { bg: t.warnSubtle, fg: t.warn };
@@ -28,6 +48,44 @@ export function MoneyScreen() {
 
   const hasAny = (summary?.applicationCount ?? 0) > 0;
 
+  const picker = (
+    <Card style={{ marginBottom: 16 }}>
+      <Text style={{ color: t.text, fontWeight: '700', fontSize: 14, marginBottom: 10 }}>
+        Record an application
+      </Text>
+      {selectable.length === 0 ? (
+        <Text style={{ color: t.textFaint, fontSize: 12.5 }}>
+          No IPOs are open or awaiting allotment right now.
+        </Text>
+      ) : (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
+          {selectable.map((ipo) => {
+            const on = ipo.id === selectedId;
+            return (
+              <Pressable
+                key={ipo.id}
+                onPress={() => setSelectedId(on ? '' : ipo.id)}
+                style={{
+                  paddingVertical: 6,
+                  paddingHorizontal: 12,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: on ? t.accent : t.border,
+                  backgroundColor: on ? t.accentSubtle : 'transparent',
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '600', color: on ? t.accent : t.textDim }}>
+                  {ipo.name}
+                  {ipo.category === 'SME' ? ' (SME)' : ''}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </Card>
+  );
+
   return (
     <ScrollView
       style={s.screen}
@@ -36,6 +94,9 @@ export function MoneyScreen() {
     >
       <Text style={s.title}>Money</Text>
       <Text style={s.sub}>What you applied for, and where that money is right now.</Text>
+
+      {picker}
+      {selected && <ApplyPanel ipo={selected} />}
 
       {!hasAny ? (
         <Empty
@@ -107,6 +168,47 @@ export function MoneyScreen() {
                           ? `${money(row.refundAmount)} back`
                           : 'pending'}
                     </Text>
+
+                    {/* Offered while still 'blocked' too: money can come back before the
+                        registrar answers, and the ledger should not wait on that. */}
+                    {(row.refundStatus === 'refund_pending' || row.refundStatus === 'blocked') && (
+                      <Pressable
+                        onPress={() => refundIpo.mutate(row.ipoId)}
+                        disabled={refundIpo.isPending}
+                        style={{
+                          marginTop: 6,
+                          paddingVertical: 5,
+                          paddingHorizontal: 11,
+                          borderRadius: 7,
+                          backgroundColor: t.posSubtle,
+                        }}
+                      >
+                        <Text style={{ color: t.pos, fontSize: 11.5, fontWeight: '700' }}>
+                          Got it back
+                        </Text>
+                      </Pressable>
+                    )}
+
+                    {/* Escape hatch: clears this IPO whatever state it is in, settled refunds
+                        included, so a mis-entry can be redone. */}
+                    <Pressable
+                      onPress={() =>
+                        Alert.alert(
+                          `Reset ${row.ipoName}?`,
+                          `This removes all ${row.accounts} account entr${
+                            row.accounts === 1 ? 'y' : 'ies'
+                          } for this IPO, including any refund already marked received. It cannot be undone.`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Reset', style: 'destructive', onPress: () => resetIpo.mutate(row.ipoId) },
+                          ],
+                        )
+                      }
+                      disabled={resetIpo.isPending}
+                      style={{ marginTop: 5, paddingVertical: 4, paddingHorizontal: 9 }}
+                    >
+                      <Text style={{ color: t.textFaint, fontSize: 11, fontWeight: '600' }}>Reset</Text>
+                    </Pressable>
                   </View>
                 </Pressable>
               );

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Banner, Empty, IpoRow, SectionTitle, makeStyles } from '../components';
 import { IconInbox } from '../icons';
 import { useAppNavigation } from '../navigation';
@@ -18,6 +19,12 @@ export function HomeScreen() {
   });
   const { data: pans } = useQuery({ queryKey: ['pans'], queryFn: api.pans });
 
+  // SME issues outnumber mainboard roughly two to one, so a single mixed list buries the
+  // mainboard IPOs most people are looking for. The toggle switches between them.
+  const [smeOnly, setSmeOnly] = useState(false);
+  const only = (items: Ipo[] | undefined): Ipo[] =>
+    (items ?? []).filter((ipo) => (smeOnly ? ipo.category === 'SME' : ipo.category !== 'SME'));
+
   const open = (ipo: Ipo) => navigation.navigate('IpoDetail', { id: ipo.id, name: ipo.name });
 
   const section = (title: string, items: Ipo[] | undefined, empty: string) => (
@@ -30,6 +37,12 @@ export function HomeScreen() {
       )}
     </View>
   );
+
+  const inAllotmentWindow = only(data?.awaitingAllotment);
+  const resultsOut = inAllotmentWindow.filter((i) => i.allotmentLive);
+  const awaiting = inAllotmentWindow.filter((i) => !i.allotmentLive);
+  const listed = only(data?.recentlyListed);
+  const kind = smeOnly ? 'SME' : 'mainboard';
 
   return (
     <ScrollView
@@ -44,15 +57,45 @@ export function HomeScreen() {
         <Banner tone="info">Add your PAN to check allotment across every account automatically.</Banner>
       )}
 
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
+        {([false, true] as const).map((sme) => (
+          <Pressable
+            key={String(sme)}
+            onPress={() => setSmeOnly(sme)}
+            style={{
+              paddingVertical: 7,
+              paddingHorizontal: 15,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: smeOnly === sme ? t.accent : t.border,
+              backgroundColor: smeOnly === sme ? t.accentSubtle : 'transparent',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: smeOnly === sme ? t.accent : t.textDim,
+              }}
+            >
+              {sme ? 'SME' : 'Mainboard'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
       {isLoading ? (
         <ActivityIndicator color={t.accent} style={{ marginTop: 40 }} />
       ) : (
         <>
-          {data && data.awaitingAllotment.length > 0 &&
-            section('Awaiting allotment', data.awaitingAllotment, '')}
-          {section('Open now', data?.open, 'No IPOs are open right now.')}
-          {section('Upcoming', data?.upcoming, 'No upcoming IPOs announced yet.')}
-          {data && data.recentlyListed.length > 0 && section('Recently listed', data.recentlyListed, '')}
+          {/* The date-derived status only says the allotment window has opened. Splitting on
+              whether the registrar is actually answering stops a published result reading as
+              "awaiting". */}
+          {resultsOut.length > 0 && section('Results out', resultsOut, '')}
+          {awaiting.length > 0 && section('Awaiting allotment', awaiting, '')}
+          {section('Open now', only(data?.open), `No ${kind} IPOs are open right now.`)}
+          {section('Upcoming', only(data?.upcoming), `No upcoming ${kind} IPOs announced yet.`)}
+          {listed.length > 0 && section('Recently listed', listed, '')}
         </>
       )}
     </ScrollView>

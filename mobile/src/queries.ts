@@ -56,6 +56,12 @@ export const api = {
   registerPush: (body: { expoToken: string }) => post<{ ok: true }>('/notifications/register-push', body),
 
   applicationBoard: (ipoId: string) => call<ApplicationBoard>(`/applications/ipo/${ipoId}`),
+  /** One credit covers every application to an issue, so refunds settle together. */
+  markIpoRefund: (ipoId: string, received = true) =>
+    post<{ ok: true; updated: number }>(`/applications/ipo/${ipoId}/refund`, { received }),
+  /** Wipes this account's ledger for one IPO, settled refunds included. */
+  resetIpoApplications: (ipoId: string) =>
+    call<{ ok: true; removed: number }>(`/applications/ipo/${ipoId}`, { method: 'DELETE' }),
   moneySummary: () => call<MoneySummary>('/applications/summary'),
   moneyByIpo: () => call<IpoMoneyRow[]>('/applications/by-ipo'),
   saveApplication: (ipoId: string, body: { panId: string; lots: number }) =>

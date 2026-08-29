@@ -13,6 +13,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { registerForPush } from './src/push';
+import { SplashGate } from './src/SplashGate';
 import { UpdateGate } from './src/UpdateGate';
 import { AuthProvider, useAuth } from './src/auth';
 import {
@@ -210,9 +211,11 @@ export default function App() {
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <UpdateGate>
-              <Gate />
-            </UpdateGate>
+            <SplashGate>
+              <UpdateGate>
+                <Gate />
+              </UpdateGate>
+            </SplashGate>
           </AuthProvider>
         </QueryClientProvider>
       </ThemeProvider>

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Banner, Card, Logo, Pill, makeStyles } from '../components';
-import { gmpText, gmpTone, money, relativeTime, statusLabel } from '../format';
+import { gmpPerLot, gmpText, gmpTone, money, relativeTime, signedMoney, statusLabel } from '../format';
 import { useAppNavigation } from '../navigation';
 import { api } from '../queries';
 import { useTheme } from '../theme';
@@ -60,6 +60,8 @@ export function GmpScreen() {
         <Card>
           {items.map((ipo, index) => {
             const tone = gmpTone(ipo.gmp);
+            // GMP is per share; per lot is what someone applying actually needs.
+            const perLot = gmpPerLot(ipo.gmp, ipo.lotSize);
             const toneColor = tone === 'up' ? t.pos : tone === 'down' ? t.neg : t.textFaint;
 
             return (
@@ -90,6 +92,11 @@ export function GmpScreen() {
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={{ color: toneColor, fontWeight: '700', fontSize: 16 }}>{gmpText(ipo.gmp)}</Text>
+                  {perLot !== null && perLot !== 0 && (
+                    <Text style={{ color: toneColor, fontWeight: '600', fontSize: 12 }}>
+                      {signedMoney(perLot)}/lot
+                    </Text>
+                  )}
                   <Text style={{ color: t.textFaint, fontSize: 10.5 }}>
                     {[
                       ipo.gmp !== 0 && ipo.gmpPercent !== null ? `${ipo.gmpPercent}%` : null,
