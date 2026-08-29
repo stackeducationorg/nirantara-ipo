@@ -12,6 +12,7 @@
     "kfintest": "tsx src/cli/kfintest.ts",
     "moneytest": "tsx src/cli/moneytest.ts",
     "registrartest": "tsx src/cli/registrartest.ts",
+    "captchatest": "tsx src/cli/captchatest.ts",
     "browsers": "playwright install chromium"
   },
   "dependencies": {

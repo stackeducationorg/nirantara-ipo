@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { api, ApiError } from '../api';
+import { api, ApiError, type CaptchaChallenge } from '../api';
 import { money, num, relativeTime, shortDate } from '../format';
 import type { AllotmentResult, AllotmentSummary, Ipo } from '../types';
 import { IconAlert, IconClock } from './Icons';
@@ -117,14 +118,38 @@ export function AllotmentPanel({ ipo }: { ipo: Ipo }) {
     queryFn: () => api.allotment(ipo.id),
   });
 
+  /**
+   * Some registrars (Bigshare) will not answer without a captcha a human has read. The
+   * server returns 428 with the challenge attached; it is shown here and the answer is sent
+   * back with a retry. A captcha is spent on one lookup, so the retry names a single PAN.
+   */
+  const [captcha, setCaptcha] = useState<CaptchaChallenge | null>(null);
+  const [answer, setAnswer] = useState('');
+  const [panForCaptcha, setPanForCaptcha] = useState('');
+
   const check = useMutation({
-    mutationFn: () => api.checkAllotment(ipo.id),
+    mutationFn: (opts?: { panId?: string; captchaToken?: string; captchaAnswer?: string }) =>
+      api.checkAllotment(ipo.id, opts),
     onSuccess: (data) => {
+      setCaptcha(null);
+      setAnswer('');
       queryClient.setQueryData(['allotment', ipo.id], data);
       void queryClient.invalidateQueries({ queryKey: ['allotment-history'] });
       void queryClient.invalidateQueries({ queryKey: ['pans'] });
     },
+    onError: (err) => {
+      const body = err instanceof ApiError ? (err.body as { captcha?: CaptchaChallenge } | null) : null;
+      // A wrong answer comes back as another 428 with a *new* image — the spent one cannot
+      // be retried, so the prompt simply refreshes rather than closing.
+      if (body?.captcha) {
+        setCaptcha(body.captcha);
+        setAnswer('');
+        if (!panForCaptcha && activePansForCaptcha[0]) setPanForCaptcha(activePansForCaptcha[0].id);
+      }
+    },
   });
+
+  const activePansForCaptcha = (pans ?? []).filter((p) => p.isActive);
 
   const today = new Date().toISOString().slice(0, 10);
   const beforeAllotment = Boolean(ipo.boaDate && today < ipo.boaDate);
@@ -198,11 +223,86 @@ export function AllotmentPanel({ ipo }: { ipo: Ipo }) {
         </div>
       )}
 
+      {captcha && (
+        <div style={{ padding: '0 16px 4px' }}>
+          <div className="card card-pad" style={{ background: 'var(--surface-2)' }}>
+            <div className="section-title" style={{ marginBottom: 6 }}>
+              This registrar needs a captcha
+            </div>
+            <p className="dim" style={{ margin: '0 0 12px', fontSize: 13 }}>
+              Bigshare asks for a code before it will answer. One code covers one account, so
+              pick which to check and type what you see.
+            </p>
+
+            <div className="field">
+              <label className="label" htmlFor="captcha-pan">
+                Account
+              </label>
+              <select
+                id="captcha-pan"
+                className="input"
+                value={panForCaptcha}
+                onChange={(e) => setPanForCaptcha(e.target.value)}
+              >
+                {activePansForCaptcha.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.holderName ?? p.label} — {p.pan ?? p.demat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <img
+              src={captcha.image}
+              alt="Captcha from the registrar"
+              style={{
+                display: 'block',
+                marginBottom: 10,
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+                background: '#fff',
+                maxWidth: '100%',
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                className="input mono"
+                placeholder="Type the code"
+                value={answer}
+                autoComplete="off"
+                autoCapitalize="characters"
+                onChange={(e) => setAnswer(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && answer.trim()) {
+                    check.mutate({ panId: panForCaptcha, captchaToken: captcha.token, captchaAnswer: answer.trim() });
+                  }
+                }}
+                style={{ flex: 1, textTransform: 'uppercase' }}
+              />
+              <button
+                className="btn primary"
+                disabled={!answer.trim() || !panForCaptcha || check.isPending}
+                onClick={() =>
+                  check.mutate({ panId: panForCaptcha, captchaToken: captcha.token, captchaAnswer: answer.trim() })
+                }
+              >
+                {check.isPending && <span className="spinner" />}
+                Submit
+              </button>
+              <button className="btn" onClick={() => setCaptcha(null)} disabled={check.isPending}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ padding: 16 }}>
         <button
           className="btn primary block"
           disabled={check.isPending || beforeAllotment}
-          onClick={() => check.mutate()}
+          onClick={() => check.mutate(undefined)}
         >
           {check.isPending && <span className="spinner" />}
           {check.isPending

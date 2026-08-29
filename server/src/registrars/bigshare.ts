@@ -1,14 +1,47 @@
 import * as cheerio from 'cheerio';
-import { getText, postJson } from '../util/http.js';
+import { getJson, getText, postJson } from '../util/http.js';
 import { toInt } from '../util/parse.js';
-import type { AllotmentLookup, AllotmentQuery, RegistrarAdapter, RegistrarCompany } from './types.js';
-import { RegistrarError } from './types.js';
+import type {
+  AllotmentLookup,
+  AllotmentQuery,
+  CaptchaChallenge,
+  RegistrarAdapter,
+  RegistrarCompany,
+} from './types.js';
+import { CaptchaRequiredError, RegistrarError } from './types.js';
 
 const STATUS_PAGE = 'https://ipo.bigshareonline.com/IPO_Status.html';
 const API = 'https://ipo.bigshareonline.com/Data.aspx/FetchIpodetails';
+const CAPTCHA_API = 'https://ipo.bigshareonline.com/Captcha.ashx';
+
+interface CaptchaResponse {
+  token?: string;
+  image?: string;
+  Token?: string;
+  Image?: string;
+}
+
+/**
+ * Bigshare issues a signed token alongside a PNG of the challenge. The token is opaque to us
+ * — it only has to travel back with whatever the user typed.
+ */
+async function newCaptcha(): Promise<CaptchaChallenge> {
+  const json = await getJson<CaptchaResponse>(CAPTCHA_API, {
+    headers: { Referer: STATUS_PAGE, Origin: 'https://ipo.bigshareonline.com', Accept: 'application/json' },
+    timeoutMs: 20_000,
+  });
+  // The site's own script accepts either casing, so a cached page or a proxy that rewrites
+  // JSON does not silently break the flow.
+  const token = json.token ?? json.Token;
+  const image = json.image ?? json.Image;
+  if (!token || !image) throw new RegistrarError('Bigshare did not return a captcha');
+  return { token, image };
+}
 
 interface BigshareResponse {
   d?: {
+    Status?: string;
+    Message?: string;
     APPLICATION_NO?: string;
     DPID?: string;
     Name?: string;
@@ -36,7 +69,7 @@ async function listCompanies(): Promise<RegistrarCompany[]> {
     });
 }
 
-async function check({ companyCode, pan, demat, by }: AllotmentQuery): Promise<AllotmentLookup> {
+async function check({ companyCode, pan, demat, by, captcha }: AllotmentQuery): Promise<AllotmentLookup> {
   const useDemat = by === 'demat';
   if (useDemat && !demat) throw new RegistrarError('No demat account on file for this applicant');
 
@@ -59,28 +92,30 @@ async function check({ companyCode, pan, demat, by }: AllotmentQuery): Promise<A
     txtClId: nsdl ? demat!.id.slice(8) : '',
     ddlType: useDemat ? demat!.depository : '0',
     lang: 'en',
+    CaptchaToken: captcha?.token ?? '',
+    CaptchaAnswer: captcha?.answer ?? '',
+    // Re-reads a record the user already solved a captcha for. Unused here: every lookup
+    // this adapter makes is a fresh search.
+    ResultToken: '',
   };
 
-  let json: BigshareResponse;
-  try {
-    json = await postJson<BigshareResponse>(API, payload, {
-      headers: { Referer: STATUS_PAGE, Origin: 'https://ipo.bigshareonline.com' },
-      timeoutMs: 25_000,
-    });
-  } catch (err) {
-    const status = (err as { status?: number }).status;
-    // A 500 here is the captcha rejection; Bigshare does not distinguish it in the body.
-    if (status === 500 || status === 400) {
-      throw new RegistrarError(
-        'Bigshare now requires a captcha for allotment lookups — check directly at ipo.bigshareonline.com',
-        false,
-      );
-    }
-    throw err;
-  }
+  // Without a captcha there is nothing to send, so ask for a challenge straight away rather
+  // than making a call that is certain to be refused.
+  if (!captcha) throw new CaptchaRequiredError(await newCaptcha());
+
+  const json = await postJson<BigshareResponse>(API, payload, {
+    headers: { Referer: STATUS_PAGE, Origin: 'https://ipo.bigshareonline.com' },
+    timeoutMs: 25_000,
+  });
 
   const d = json.d;
   if (!d) throw new RegistrarError('Bigshare returned an empty response');
+
+  // A wrong or expired answer comes back as a 200 with Status: CAPTCHA. Issue a fresh
+  // challenge with it — the old token is spent, so retrying with it would fail again.
+  if (d.Status === 'CAPTCHA') {
+    throw new CaptchaRequiredError(await newCaptcha(), d.Message ?? 'Invalid captcha code');
+  }
 
   const dpid = (d.DPID ?? '').trim();
   if (!dpid || /no data found/i.test(dpid)) {
@@ -106,6 +141,8 @@ export const bigshare: RegistrarAdapter = {
   driver: 'http',
   match: ['bigshare'],
   searchBy: ['pan', 'demat'],
+  needsCaptcha: true,
+  newCaptcha,
   listCompanies,
   check,
 };

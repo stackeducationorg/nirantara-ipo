@@ -26,9 +26,38 @@ export interface DematAccount {
 
 export type SearchBy = 'pan' | 'demat';
 
+/** A captcha challenge a registrar issued, to be shown to the user and answered by them. */
+export interface CaptchaChallenge {
+  /** Opaque handle the registrar uses to tie the answer back to the image it issued. */
+  token: string;
+  /** data: URI of the challenge image, safe to render directly in an <img>. */
+  image: string;
+}
+
+export interface CaptchaAnswer {
+  token: string;
+  answer: string;
+}
+
+/**
+ * Thrown when a registrar will not answer without a solved captcha. Carries the challenge so
+ * the caller can put it in front of the user rather than simply failing.
+ */
+export class CaptchaRequiredError extends Error {
+  constructor(
+    readonly challenge: CaptchaChallenge,
+    message = 'This registrar requires a captcha',
+  ) {
+    super(message);
+    this.name = 'CaptchaRequiredError';
+  }
+}
+
 export interface AllotmentQuery {
   companyCode: string;
   pan: string;
+  /** Supplied on a retry, after the user has read the challenge image. */
+  captcha?: CaptchaAnswer | null;
   /** Set when the saved applicant also has a demat account on file. */
   demat?: DematAccount | null;
   /** Which identifier to look up by. Defaults to `pan`. */
@@ -60,6 +89,13 @@ export interface RegistrarAdapter {
    * would silently answer "not applied" instead of admitting it cannot search that way.
    */
   searchBy: SearchBy[];
+  /**
+   * True when lookups need a captcha the user must read. Callers should expect
+   * CaptchaRequiredError from check() and be ready to prompt.
+   */
+  needsCaptcha?: boolean;
+  /** Fetches a fresh challenge to show the user. Only defined when needsCaptcha. */
+  newCaptcha?(): Promise<CaptchaChallenge>;
   /** The issues this registrar currently has open for allotment lookup. */
   listCompanies(): Promise<RegistrarCompany[]>;
   check(query: AllotmentQuery): Promise<AllotmentLookup>;

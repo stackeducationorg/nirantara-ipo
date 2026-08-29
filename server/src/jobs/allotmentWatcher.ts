@@ -1,5 +1,6 @@
 import { claimOnce, db, wasClaimed } from '../db/index.js';
 import { getRegistrar } from '../registrars/index.js';
+import type { CaptchaAnswer } from '../registrars/types.js';
 import { decryptPan } from '../util/crypto.js';
 import { logger } from '../util/logger.js';
 import { todayIso } from '../util/parse.js';
@@ -229,9 +230,13 @@ function pendingIposSafe(): IpoRow[] {
 }
 
 /** Manual re-check used by the API when a user taps "check now". */
-export async function forceCheck(accountId: string, ipoId: string): Promise<AllotmentSummary> {
+export async function forceCheck(
+  accountId: string,
+  ipoId: string,
+  opts: { panId?: string; captcha?: CaptchaAnswer | null } = {},
+): Promise<AllotmentSummary> {
   const ipo = getIpo(ipoId);
   if (!ipo) throw new Error('IPO not found');
   await ensureRegistrar(ipo);
-  return checkAllotmentForAccount(accountId, ipoId);
+  return checkAllotmentForAccount(accountId, ipoId, opts);
 }

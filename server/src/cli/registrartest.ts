@@ -8,6 +8,7 @@
  * a failure here usually means a registrar changed its site, not that the code regressed.
  */
 import { registrars } from '../registrars/index.js';
+import { CaptchaRequiredError } from '../registrars/types.js';
 import type { RegistrarAdapter } from '../registrars/types.js';
 
 // Structurally valid but unissued, so no real investor's data is ever fetched.
@@ -62,6 +63,12 @@ async function exercise(adapter: RegistrarAdapter) {
       fail(`check(unissued PAN) -> ${result.status}`, JSON.stringify(result));
     }
   } catch (err) {
+    // Captcha-gated registrars are exercised by captchatest, which can assert on the
+    // challenge itself. Failing them here would just be noise.
+    if (err instanceof CaptchaRequiredError) {
+      console.log('  ----  needs a captcha; covered by `npm run captchatest -w server`');
+      return;
+    }
     fail('check', (err as Error).message);
   }
 

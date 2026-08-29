@@ -42,9 +42,17 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Full response body. A 428 carries the captcha challenge the caller has to render. */
+    readonly body: unknown = null,
   ) {
     super(message);
   }
+}
+
+export interface CaptchaChallenge {
+  token: string;
+  /** data: URI, safe to put straight into an <img src>. */
+  image: string;
 }
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -63,7 +71,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const message = (payload as { error?: string } | null)?.error ?? `Request failed (${res.status})`;
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, payload);
   }
   return payload as T;
 }
@@ -123,7 +131,16 @@ export const api = {
 
   allotmentHistory: () => call<AllotmentHistoryRow[]>('/allotment'),
   allotment: (ipoId: string) => call<AllotmentSummary>(`/allotment/${ipoId}`),
-  checkAllotment: (ipoId: string) => post<AllotmentSummary>(`/allotment/${ipoId}/check`),
+  checkAllotment: (
+    ipoId: string,
+    opts?: { panId?: string; captchaToken?: string; captchaAnswer?: string },
+  ) => post<AllotmentSummary>(`/allotment/${ipoId}/check`, opts ?? {}),
+
+  /** Whether this IPO's registrar demands a captcha, plus a challenge if it does. */
+  allotmentCaptcha: (ipoId: string) =>
+    call<{ needsCaptcha: boolean; registrar?: string; captcha?: CaptchaChallenge }>(
+      `/allotment/${ipoId}/captcha`,
+    ),
 
   notifications: () => call<AppNotification[]>('/notifications'),
   unreadCount: () => call<{ count: number }>('/notifications/unread-count'),

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { db } from '../db/index.js';
 import { getRegistrar, resolveRegistrar } from '../registrars/index.js';
-import type { AllotmentStatus, DematAccount } from '../registrars/types.js';
+import type { AllotmentStatus, CaptchaAnswer, DematAccount } from '../registrars/types.js';
 import { decryptPan } from '../util/crypto.js';
 import { mapLimit } from '../util/http.js';
 import { logger } from '../util/logger.js';
@@ -114,7 +114,11 @@ ON CONFLICT(ipo_id, pan_id) DO UPDATE SET
 `);
 
 /** Checks a single PAN against the registrar and persists the outcome. */
-async function checkOne(ipo: IpoRow, pan: PanRecord): Promise<AllotmentResult> {
+async function checkOne(
+  ipo: IpoRow,
+  pan: PanRecord,
+  captcha?: CaptchaAnswer | null,
+): Promise<AllotmentResult> {
   const plainPan = pan.pan_enc ? decryptPan(pan.pan_enc) : null;
   const base = { panId: pan.id, label: pan.label, panMasked: maskIdentity(pan.pan_enc, pan.demat_enc) };
   const adapter = getRegistrar(ipo.registrar_key);
@@ -152,6 +156,7 @@ async function checkOne(ipo: IpoRow, pan: PanRecord): Promise<AllotmentResult> {
           pan: plainPan ?? '',
           demat,
           by: plainPan ? 'pan' : 'demat',
+          captcha,
         });
 
         if (plainPan && lookup.status === 'not_applied' && canUseDemat) {
@@ -247,11 +252,17 @@ export function getPans(accountId: string): PanRecord[] {
  * apps: instead of typing one PAN at a time, every account is checked in a single pass and
  * reported as an aggregate.
  */
-export async function checkAllotmentForAccount(accountId: string, ipoId: string): Promise<AllotmentSummary> {
+export async function checkAllotmentForAccount(
+  accountId: string,
+  ipoId: string,
+  opts: { panId?: string; captcha?: CaptchaAnswer | null } = {},
+): Promise<AllotmentSummary> {
   const ipo = getIpo(ipoId);
   if (!ipo) throw new Error('IPO not found');
 
-  const pans = getPans(accountId);
+  // A captcha answer is spent on a single lookup, so a captcha-gated check names the one
+  // PAN it applies to instead of sweeping the whole book with a token that is already used.
+  const pans = opts.panId ? getPans(accountId).filter((p) => p.id === opts.panId) : getPans(accountId);
   if (pans.length === 0) return summarise(ipo, []);
 
   const withRegistrar = await ensureRegistrar(ipo);
@@ -259,7 +270,7 @@ export async function checkAllotmentForAccount(accountId: string, ipoId: string)
 
   // Browser-driven registrars are serialised anyway; going wide only queues up timeouts.
   const concurrency = adapter?.driver === 'browser' ? 1 : 4;
-  const results = await mapLimit(pans, concurrency, (pan) => checkOne(withRegistrar, pan));
+  const results = await mapLimit(pans, concurrency, (pan) => checkOne(withRegistrar, pan, opts.captcha));
 
   // Settle the money ledger from these results so refunds appear without any user action.
   reconcileFromAllotment(accountId, ipoId);
