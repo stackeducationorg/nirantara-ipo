@@ -19,19 +19,6 @@ const log = logger('registrar');
  * against the live sites.
  */
 const DEFAULTS: Record<string, BrowserProfile> = {
-  cameo: {
-    key: 'cameo',
-    name: 'Cameo Corporate Services',
-    match: ['cameo'],
-    // The landing page at ipo.cameoindia.com is only a router; the form lives on these hosts.
-    url: 'https://ipostatus1.cameoindia.com/',
-    companySelect: '#drpCompany',
-    searchType: { selector: '#ddlUserTypes', match: /pan/i },
-    panInput: '#txtfolio',
-    submit: '#Button1',
-    result: 'table, .result-container',
-    captcha: 'image',
-  },
 };
 
 function loadOverrides(): Record<string, Partial<BrowserProfile>> {

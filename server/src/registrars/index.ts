@@ -1,6 +1,7 @@
 import { logger } from '../util/logger.js';
 import { nameSimilarity } from '../util/parse.js';
 import { bigshare } from './bigshare.js';
+import { cameo } from './cameo.js';
 import { createBrowserAdapter } from './browserAdapter.js';
 import { kfintech } from './kfintech.js';
 import { maashitla } from './maashitla.js';
