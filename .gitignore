@@ -18,3 +18,7 @@ Thumbs.db
 # committing them would fork the native project away from the config that produces it.
 mobile/android/
 mobile/ios/
+
+# Credential dumps must never be committed, wherever they land.
+nirantara-credentials.txt
+*credentials*.txt
