@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { getIpo, gmpHistory, latestGmp, listIpos, type IpoRow, type IpoStatus } from '../services/ipoStore.js';
 import { listRegistrars } from '../registrars/index.js';
+import { cacheGet } from '../util/cache.js';
 import { daysBetween, todayIso } from '../util/parse.js';
 
 export const iposRouter = Router();
@@ -54,6 +55,10 @@ function serialise(row: IpoRow) {
     allotmentLive: allotmentIsLive(row.id),
   };
 }
+
+// Every GET on this router returns the same bytes for all users — cache them so a spike of
+// readers on allotment evening hits memory, not SQLite.
+iposRouter.use(cacheGet(30));
 
 iposRouter.get('/', (req, res) => {
   const status = req.query.status as IpoStatus | undefined;

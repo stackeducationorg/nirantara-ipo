@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { config } from '../config.js';
 import { logger } from '../util/logger.js';
 import { refreshStatuses, syncIpos, syncSubscriptions } from '../services/ipoStore.js';
+import { clearResponseCache } from '../util/cache.js';
 import { watchAllotments } from './allotmentWatcher.js';
 import { runGmpAlerts, runLifecycleAlerts } from './lifecycle.js';
 
@@ -32,11 +33,13 @@ export const runIpoSync = serialise('ipo-sync', async () => {
   const { gmpChanges } = await syncIpos();
   refreshStatuses();
   await syncSubscriptions().catch((err) => log.warn(`subscription sync failed: ${err.message}`));
+  clearResponseCache();
   await runGmpAlerts(gmpChanges);
 });
 
 export const runGmpSync = serialise('gmp-sync', async () => {
   const { gmpChanges } = await syncIpos();
+  clearResponseCache();
   await runGmpAlerts(gmpChanges);
 });
 
