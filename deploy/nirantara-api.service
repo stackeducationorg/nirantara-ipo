@@ -19,10 +19,11 @@ TimeoutStopSec=30
 Restart=always
 RestartSec=5
 
-# On a 1GB box, cap the unit so systemd restarts just the API instead of the kernel
-# picking a victim at random when memory runs short.
-MemoryMax=820M
-MemoryHigh=700M
+# Cap the unit so a runaway process gets restarted by systemd rather than the kernel picking
+# a victim at random. Sized for the 12GB A1 box, with headroom left for nginx and the OS.
+# On a 1GB micro, drop these to MemoryMax=820M / MemoryHigh=700M.
+MemoryMax=10G
+MemoryHigh=9G
 
 # Hardening: the service needs nothing outside its own directory.
 NoNewPrivileges=true
