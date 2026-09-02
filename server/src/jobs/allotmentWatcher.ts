@@ -175,7 +175,7 @@ async function notifyAccounts(ipo: IpoRow): Promise<void> {
 
     let summary: AllotmentSummary;
     try {
-      summary = await checkAllotmentForAccount(accountId, ipo.id);
+      summary = await checkAllotmentForAccount(accountId, ipo.id, { auto: true });
     } catch (err) {
       log.warn(`sweep failed for account ${accountId}: ${(err as Error).message}`);
       outstanding += 1;

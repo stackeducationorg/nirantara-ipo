@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { getRegistrar, resolveRegistrar } from '../registrars/index.js';
 import type { AllotmentStatus, CaptchaAnswer, DematAccount } from '../registrars/types.js';
 import { CaptchaRequiredError } from '../registrars/types.js';
+import { solveEnabled, solveImageCaptcha } from '../util/captchaSolver.js';
 import { decryptPan } from '../util/crypto.js';
 import { mapLimit } from '../util/http.js';
 import { logger } from '../util/logger.js';
@@ -178,6 +179,10 @@ async function checkOne(
         message = lookup.message ?? null;
         raw = lookup.raw ?? null;
       } catch (err) {
+        // A captcha demand is not a failure to record — it must reach the caller so the UI
+        // can show the challenge. Swallowing it here is what produced a wall of stored
+        // "check failed" rows and no way to enter a captcha.
+        if (err instanceof CaptchaRequiredError) throw err;
         status = 'error';
         message = (err as Error).message;
         log.warn(`check failed for ${pan.label} on ${ipo.name}: ${message}`);
@@ -256,7 +261,7 @@ export function getPans(accountId: string): PanRecord[] {
 export async function checkAllotmentForAccount(
   accountId: string,
   ipoId: string,
-  opts: { panId?: string; captcha?: CaptchaAnswer | null } = {},
+  opts: { panId?: string; captcha?: CaptchaAnswer | null; auto?: boolean } = {},
 ): Promise<AllotmentSummary> {
   const ipo = getIpo(ipoId);
   if (!ipo) throw new Error('IPO not found');
@@ -266,6 +271,36 @@ export async function checkAllotmentForAccount(
 
   const withRegistrar = await ensureRegistrar(ipo);
   const adapter = getRegistrar(withRegistrar.registrar_key);
+
+  // A captcha registrar cannot be checked without a human to read the challenge. In the
+  // automatic sweep there is nobody, so attempting it every 10 minutes only hammers the
+  // registrar's captcha endpoint into rate-limiting us (HTTP 429) and stores those as errors.
+  // Skip it entirely on auto; the user's manual "check" is what solves it.
+  if (adapter?.needsCaptcha && !opts.captcha && adapter.newCaptcha) {
+    // If a solving service is configured, fetch the challenge and solve it via the service —
+    // no human, works in the automatic sweep too. This is the "check by API" path: the image
+    // goes to the solver, the text comes back, and the lookup proceeds like any other. One
+    // solved token is then reused across the whole PAN book by the branch below.
+    if (solveEnabled()) {
+      const challenge = await adapter.newCaptcha();
+      const solved = await solveImageCaptcha(challenge.image);
+      if (solved.ok && solved.answer) {
+        opts = { ...opts, captcha: { token: challenge.token, answer: solved.answer } };
+      } else if (opts.auto) {
+        // Solver failed and nobody is watching — leave it for the next sweep rather than error.
+        return summarise(withRegistrar, []);
+      } else {
+        // Manual: hand the same challenge to the user so they can finish it themselves.
+        throw new CaptchaRequiredError(challenge, 'Automatic solve failed — please enter the code');
+      }
+    } else if (opts.auto) {
+      // No solver, automatic sweep: nobody to read it, so skip rather than hammer the endpoint.
+      return summarise(withRegistrar, []);
+    } else {
+      // No solver, manual: fetch one challenge and surface it to the user.
+      throw new CaptchaRequiredError(await adapter.newCaptcha(), 'This registrar requires a captcha');
+    }
+  }
 
   // Browser-driven registrars are serialised anyway; going wide only queues up timeouts.
   const concurrency = adapter?.driver === 'browser' ? 1 : 4;

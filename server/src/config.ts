@@ -64,6 +64,16 @@ export const config = {
 
   // Google Sign-In. Empty disables the endpoint entirely rather than accepting
   // unverifiable tokens, so a missing value fails closed.
+  /**
+   * Optional automatic captcha solving for the registrars that gate their public lookup
+   * behind an image (Bigshare, Cameo). Empty key = disabled, and the app shows the challenge
+   * to the user instead. Provider API is 2captcha-compatible.
+   */
+  captcha: {
+    solverApiKey: optional('CAPTCHA_SOLVER_API_KEY'),
+    solverUrl: optional('CAPTCHA_SOLVER_URL', 'https://2captcha.com'),
+  },
+
   googleClientId: optional('GOOGLE_CLIENT_ID'),
   /**
    * Native sign-in returns an ID token whose `aud` is the platform's own client id, not the
