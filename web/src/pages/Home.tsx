@@ -91,15 +91,15 @@ export function Home() {
             </Section>
           )}
 
+          <Section title="Open now" count={open.length}>
+            <IpoList items={open} empty={`No ${kind} IPOs are open for applications right now.`} />
+          </Section>
+
           {awaiting.length > 0 && (
             <Section title="Awaiting allotment" count={awaiting.length}>
               <IpoList items={awaiting} empty="" />
             </Section>
           )}
-
-          <Section title="Open now" count={open.length}>
-            <IpoList items={open} empty={`No ${kind} IPOs are open for applications right now.`} />
-          </Section>
 
           <Section title="Upcoming" count={upcoming.length}>
             <IpoList items={upcoming} empty={`No upcoming ${kind} IPOs announced yet.`} />

@@ -17,7 +17,12 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 interface GoogleIdApi {
   accounts: {
     id: {
-      initialize(config: { client_id: string; callback: (r: { credential: string }) => void }): void;
+      initialize(config: {
+        client_id: string;
+        callback: (r: { credential: string }) => void;
+        itp_support?: boolean;
+        use_fedcm_for_prompt?: boolean;
+      }): void;
       renderButton(parent: HTMLElement, options: Record<string, unknown>): void;
     };
   };
@@ -77,6 +82,9 @@ export function GoogleButton({
         window.google.accounts.id.initialize({
           client_id: CLIENT_ID,
           callback: (response) => callback.current(response.credential),
+          // Safari/iOS intelligent tracking prevention otherwise blocks the flow silently.
+          itp_support: true,
+          use_fedcm_for_prompt: true,
         });
         window.google.accounts.id.renderButton(holder.current, {
           theme: 'outline',
@@ -87,7 +95,10 @@ export function GoogleButton({
           logo_alignment: 'center',
         });
       })
-      .catch(() => {
+      .catch((err) => {
+        // Surface the cause — an unregistered JavaScript origin fails exactly here, and
+        // without this it looks like the button simply never appeared.
+        console.error('[google] sign-in unavailable:', err);
         if (!cancelled) setFailed(true);
       });
 
@@ -101,7 +112,11 @@ export function GoogleButton({
   if (!CLIENT_ID) return null;
 
   if (failed) {
-    return <p className="input-hint" style={{ textAlign: 'center' }}>Google sign-in is unavailable right now.</p>;
+    return (
+      <p className="input-hint" style={{ textAlign: 'center' }}>
+        Google sign-in is unavailable right now — use email below.
+      </p>
+    );
   }
 
   return (

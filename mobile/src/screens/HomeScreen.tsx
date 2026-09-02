@@ -92,8 +92,8 @@ export function HomeScreen() {
               whether the registrar is actually answering stops a published result reading as
               "awaiting". */}
           {resultsOut.length > 0 && section('Results out', resultsOut, '')}
-          {awaiting.length > 0 && section('Awaiting allotment', awaiting, '')}
           {section('Open now', only(data?.open), `No ${kind} IPOs are open right now.`)}
+          {awaiting.length > 0 && section('Awaiting allotment', awaiting, '')}
           {section('Upcoming', only(data?.upcoming), `No upcoming ${kind} IPOs announced yet.`)}
           {listed.length > 0 && section('Recently listed', listed, '')}
         </>

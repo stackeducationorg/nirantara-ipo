@@ -343,6 +343,13 @@ export async function sendAllotmentEmail(
       subject,
       html,
       text,
+      // A reachable Reply-To and an unsubscribe header are two of the strongest signals a
+      // mailbox uses to keep a message out of spam — cheap to add, meaningful for delivery.
+      replyTo: config.smtp.user,
+      headers: {
+        'List-Unsubscribe': '<https://www.nirantara.cloud/alerts>',
+        'X-Entity-Ref-ID': `${ipo.id}-${to.email}`,
+      },
       attachments: logoBuffer
         ? [{ filename: 'logo.png', content: logoBuffer, cid: LOGO_CID, contentDisposition: 'inline' }]
         : [],
