@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { Logo, Section } from '../components/IpoCard';
 import { IconChevronRight, IconInbox, IconWallet } from '../components/Icons';
+import { NseCheck } from '../components/NseCheck';
 import { money, num, relativeTime, shortDate } from '../format';
 
 export function Allotment() {
@@ -19,7 +20,11 @@ export function Allotment() {
     mutationFn: async () => {
       const today = new Date().toISOString().slice(0, 10);
       // Only issues whose allotment date has arrived can return anything useful.
-      const due = (dashboard?.awaitingAllotment ?? []).filter((i) => i.boaDate && i.boaDate <= today);
+      // Captcha registrars never answer the server; those issues are swept by an operator
+      // instead, so asking here would only produce a failure the user cannot act on.
+      const due = (dashboard?.awaitingAllotment ?? []).filter(
+        (i) => i.boaDate && i.boaDate <= today && !i.registrarNeedsCaptcha,
+      );
       const settled = await Promise.allSettled(due.map((i) => api.checkAllotment(i.id)));
       return settled.filter((s) => s.status === 'fulfilled').length;
     },
@@ -95,14 +100,20 @@ export function Allotment() {
         <Section title="Waiting on results" count={dashboard.awaitingAllotment.length}>
           <div className="ipo-list">
             {dashboard.awaitingAllotment.map((ipo) => (
-              <Link key={ipo.id} to={`/ipo/${ipo.id}`} className="ipo-row">
-                <Logo ipo={ipo} />
-                <div className="ipo-main">
-                  <div className="ipo-name">{ipo.name}</div>
-                  <div className="ipo-meta">Allotment {shortDate(ipo.boaDate)}</div>
-                </div>
-                <IconChevronRight size={15} className="faint" />
-              </Link>
+              <div key={ipo.id}>
+                <Link to={`/ipo/${ipo.id}`} className="ipo-row">
+                  <Logo ipo={ipo} />
+                  <div className="ipo-main">
+                    <div className="ipo-name">{ipo.name}</div>
+                    <div className="ipo-meta">Allotment {shortDate(ipo.boaDate)}</div>
+                  </div>
+                  <IconChevronRight size={15} className="faint" />
+                </Link>
+                {/* Only while NSE is still answering for this issue. */}
+                {ipo.nseSymbol && ipo.nseBidVerifyUrl && (
+                  <NseCheck symbol={ipo.nseSymbol} url={ipo.nseBidVerifyUrl} />
+                )}
+              </div>
             ))}
           </div>
         </Section>

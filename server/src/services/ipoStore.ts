@@ -28,6 +28,7 @@ export interface IpoRow {
   logo_url: string | null;
   registrar_key: string | null;
   registrar_code: string | null;
+  nse_symbol: string | null;
   registrar_synced_at: string | null;
   subscription_json: string | null;
   updated_at: string;

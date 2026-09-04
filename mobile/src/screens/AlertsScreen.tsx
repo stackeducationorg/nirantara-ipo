@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Switch, Text, View } from 'react-native';
 import { Banner, Button, Card, Empty, SectionTitle, makeStyles } from '../components';
 import { relativeTime } from '../format';
@@ -35,6 +35,13 @@ export function AlertsScreen() {
   const queryClient = useQueryClient();
   const [pushState, setPushState] = useState<{ ok: boolean; reason?: string } | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Registration now also happens right after sign-in, so this screen may already be enabled
+  // by the time anyone opens it — check on mount rather than only ever reacting to the button.
+  // Once permission has already been granted or denied, this is silent: no dialog reappears.
+  useEffect(() => {
+    void registerForPush().then(setPushState);
+  }, []);
 
   const { data: notifications, refetch, isRefetching } = useQuery({
     queryKey: ['notifications'],

@@ -5,6 +5,7 @@ import { api, ApiError, type CaptchaChallenge } from '../api';
 import { money, num, relativeTime, shortDate } from '../format';
 import type { AllotmentResult, AllotmentSummary, Ipo } from '../types';
 import { IconAlert, IconClock } from './Icons';
+import { NsePanel } from './NseCheck';
 
 const STATUS_TEXT: Record<AllotmentResult['status'], string> = {
   allotted: 'Allotted',
@@ -234,6 +235,41 @@ export function AllotmentPanel({ ipo }: { ipo: Ipo }) {
               pick which to check and type what you see.
             </p>
 
+            {/*
+              Reading Bigshare's code is the slow way round. While NSE is still answering for
+              this issue it carries the same registrar-supplied allotment and asks only for a
+              PAN, so offer that first — it is the same answer with less work.
+            */}
+            {ipo.nseSymbol && ipo.nseBidVerifyUrl && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  margin: '0 0 14px',
+                  padding: '9px 11px',
+                  borderRadius: 8,
+                  background: 'var(--bg-soft)',
+                  border: '1px solid var(--line)',
+                  fontSize: 13,
+                }}
+              >
+                <span className="dim">
+                  Or check it on NSE instead — no code to read. Pick symbol{' '}
+                  <strong className="mono">{ipo.nseSymbol}</strong> and enter your PAN.
+                </span>
+                <a
+                  href={ipo.nseBidVerifyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="nse-link"
+                >
+                  Open NSE ↗
+                </a>
+              </div>
+            )}
+
             <div className="field">
               <label className="label" htmlFor="captcha-pan">
                 Account
@@ -299,6 +335,14 @@ export function AllotmentPanel({ ipo }: { ipo: Ipo }) {
       )}
 
       <div style={{ padding: 16 }}>
+        {/*
+          Captcha registrars (Bigshare) are never shown to the user any more — NSE answers for
+          the same issue with just a PAN, so the panel routes there instead of offering a check
+          the server cannot complete.
+        */}
+        {ipo.registrarNeedsCaptcha && !beforeAllotment ? (
+          <NsePanel symbol={ipo.nseSymbol} url={ipo.nseBidVerifyUrl} registrar={summary?.registrar ?? null} />
+        ) : (
         <button
           className="btn primary block"
           disabled={check.isPending || beforeAllotment}
@@ -311,6 +355,7 @@ export function AllotmentPanel({ ipo }: { ipo: Ipo }) {
               ? `Auto-check scheduled for ${shortDate(ipo.boaDate)}`
               : `Check all ${activePans.length} account${activePans.length > 1 ? 's' : ''} now`}
         </button>
+        )}
 
         {hasResults && (
           <div className="faint" style={{ fontSize: 12, textAlign: 'center', marginTop: 10 }}>

@@ -26,7 +26,7 @@ export default {
     // minimum, and builds already in the wild report 1.0.0. A 0.0.0.x scheme would compare
     // as *older* than those, so no existing install would ever be prompted to update.
     // Three numeric parts also keeps it valid for iOS.
-    version: '1.0.5',
+    version: '1.0.7',
     orientation: 'portrait',
     scheme: 'niranthar',
     userInterfaceStyle: 'automatic',
@@ -48,7 +48,7 @@ export default {
       // uploaded to EAS (npx eas credentials) so Expo's servers are allowed to send.
       googleServicesFile: './google-services.json',
       // Must be an integer and must increase for every Play Store upload.
-      versionCode: 7,
+      versionCode: 9,
       adaptiveIcon: {
         foregroundImage: './assets/icon.png',
         backgroundColor: '#ffffff',

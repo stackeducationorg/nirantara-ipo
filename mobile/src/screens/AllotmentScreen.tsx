@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Button, Card, Empty, Logo, SectionTitle, Stat, makeStyles } from '../components';
 import { money, num, relativeTime, shortDate } from '../format';
 import { IconChevronRight, IconInbox, IconWallet } from '../icons';
@@ -23,7 +23,11 @@ export function AllotmentScreen() {
   const checkAll = useMutation({
     mutationFn: async () => {
       const today = new Date().toISOString().slice(0, 10);
-      const due = (dashboard?.awaitingAllotment ?? []).filter((i) => i.boaDate && i.boaDate <= today);
+      // Captcha registrars never answer the server; those issues are swept by an operator
+      // instead, so asking here would only produce a failure the user cannot act on.
+      const due = (dashboard?.awaitingAllotment ?? []).filter(
+        (i) => i.boaDate && i.boaDate <= today && !i.registrarNeedsCaptcha,
+      );
       const settled = await Promise.allSettled(due.map((i) => api.checkAllotment(i.id)));
       return settled.filter((r) => r.status === 'fulfilled').length;
     },
@@ -89,6 +93,39 @@ export function AllotmentScreen() {
                     <IconChevronRight size={16} color={t.textFaint} />
                   </Pressable>
                 ))}
+                {/*
+                  NSE answers for an issue from T+1 until 10 days after close, and its form runs
+                  an invisible reCAPTCHA on every submit — so the lookup has to happen in the
+                  user's own browser. We open the page and name the symbol to pick; they enter
+                  their PAN there.
+                */}
+                {dashboard.awaitingAllotment
+                  .filter((ipo) => ipo.nseSymbol && ipo.nseBidVerifyUrl)
+                  .map((ipo) => (
+                    <Pressable
+                      key={`nse-${ipo.id}`}
+                      onPress={() => void Linking.openURL(ipo.nseBidVerifyUrl!)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        flexWrap: 'wrap',
+                        paddingHorizontal: 13,
+                        paddingTop: 10,
+                        paddingBottom: 12,
+                        borderTopWidth: 1,
+                        borderTopColor: t.border,
+                      }}
+                    >
+                      <Text style={{ color: t.textFaint, fontSize: 11.5 }}>
+                        Check {ipo.name} on NSE — pick symbol
+                      </Text>
+                      <Text style={{ color: t.text, fontSize: 11.5, fontWeight: '700' }}>
+                        {ipo.nseSymbol}
+                      </Text>
+                      <Text style={{ color: t.accent, fontSize: 11.5, fontWeight: '600' }}>Open ↗</Text>
+                    </Pressable>
+                  ))}
               </Card>
             </View>
           )}

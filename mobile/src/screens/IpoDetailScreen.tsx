@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { Banner, Button, Card, Logo, Pill, Stat, makeStyles } from '../components';
 import { ApplyPanel } from '../components/ApplyPanel';
 import { gmpText, gmpTone, money, num, relativeTime, shortDate, statusLabel } from '../format';
@@ -218,6 +218,30 @@ function AllotmentPanel({ ipo }: { ipo: Ipo }) {
       {check.isError && <Banner tone="error">{(check.error as Error).message}</Banner>}
 
       <View style={{ marginTop: 14 }}>
+        {/*
+          Captcha registrars never answer the server. An operator reads one challenge and spends
+          it across every account's book, so the applicant is told their result without lifting a
+          finger — asking them to press "check" here would only fail. NSE is offered underneath
+          for anyone who would rather not wait for that sweep.
+        */}
+        {ipo.registrarNeedsCaptcha && !beforeAllotment ? (
+          <>
+            <Banner tone="info">
+              This registrar needs a code read by a person, so we solve it once for everyone and
+              send your result the moment it lands. Nothing for you to do.
+            </Banner>
+            {ipo.nseSymbol && ipo.nseBidVerifyUrl && (
+              <Pressable
+                onPress={() => void Linking.openURL(ipo.nseBidVerifyUrl!)}
+                style={{ paddingVertical: 11, alignItems: 'center' }}
+              >
+                <Text style={{ color: t.accent, fontSize: 13, fontWeight: '600' }}>
+                  See it now on NSE — symbol {ipo.nseSymbol} ↗
+                </Text>
+              </Pressable>
+            )}
+          </>
+        ) : (
         <Button
           title={
             beforeAllotment
@@ -228,6 +252,7 @@ function AllotmentPanel({ ipo }: { ipo: Ipo }) {
           disabled={beforeAllotment}
           loading={check.isPending}
         />
+        )}
         {results.length > 0 && (
           <Text style={{ color: t.textFaint, fontSize: 11.5, textAlign: 'center', marginTop: 8 }}>
             Last checked {relativeTime(results[0].checkedAt)}

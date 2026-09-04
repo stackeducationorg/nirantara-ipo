@@ -255,6 +255,10 @@ addColumnIfMissing('accounts', 'name', 'TEXT');
 // email can change, while the sub never does.
 addColumnIfMissing('accounts', 'google_sub', 'TEXT');
 
+// NSE's ticker for the issue, matched by name in nseSymbols.ts. Null whenever NSE is not
+// currently answering for this issue, which is the normal state outside the bid window.
+addColumnIfMissing('ipos', 'nse_symbol', 'TEXT');
+
 // ALTER TABLE cannot add a UNIQUE column, so the constraint is a separate index.
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_email ON accounts(email) WHERE email IS NOT NULL');
 db.exec(

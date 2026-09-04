@@ -1819,3 +1819,35 @@ button {
   font-size: 13px;
   line-height: 1.55;
 }
+
+/* Hand-off to NSE's own bid verification page, shown under an issue awaiting allotment. */
+.nse-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 14px 11px;
+  margin-top: -4px;
+  font-size: 12.5px;
+}
+.nse-symbol {
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+}
+.nse-symbol:hover {
+  border-color: var(--accent);
+}
+.nse-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.nse-link:hover {
+  text-decoration: underline;
+}

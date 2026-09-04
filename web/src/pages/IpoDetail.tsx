@@ -83,6 +83,7 @@ function GmpChart({ ipo }: { ipo: Ipo }) {
       month: 'short',
     }),
     gmp: point.gmp,
+    gmpPercent: point.gmp_percent,
   }));
 
   return (
@@ -102,14 +103,28 @@ function GmpChart({ ipo }: { ipo: Ipo }) {
           <XAxis dataKey="time" tick={{ fontSize: 11, fill: 'var(--text-3)' }} tickLine={false} axisLine={false} />
           <YAxis tick={{ fontSize: 11, fill: 'var(--text-3)' }} tickLine={false} axisLine={false} width={42} />
           <Tooltip
-            contentStyle={{
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              fontSize: 12,
-              color: 'var(--text)',
+            content={({ active, payload, label }) => {
+              if (!active || !payload || payload.length === 0) return null;
+              const point = payload[0].payload as { gmp: number; gmpPercent: number | null };
+              return (
+                <div
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '8px 10px',
+                    fontSize: 12,
+                    color: 'var(--text)',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 3 }}>{label}</div>
+                  <div>GMP : ₹{point.gmp}</div>
+                  {point.gmpPercent !== null && (
+                    <div style={{ color: 'var(--text-3)' }}>GMP % : {point.gmpPercent}%</div>
+                  )}
+                </div>
+              );
             }}
-            formatter={(value: number) => [`₹${value}`, 'GMP']}
           />
           <Area type="monotone" dataKey="gmp" stroke="var(--accent)" strokeWidth={2} fill="url(#gmpFill)" />
         </AreaChart>

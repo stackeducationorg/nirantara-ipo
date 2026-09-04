@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { config } from '../config.js';
 import { logger } from '../util/logger.js';
 import { refreshStatuses, syncIpos, syncSubscriptions } from '../services/ipoStore.js';
+import { syncNseSymbols } from '../services/nseSymbols.js';
 import { clearResponseCache } from '../util/cache.js';
 import { watchAllotments } from './allotmentWatcher.js';
 import { runGmpAlerts, runLifecycleAlerts } from './lifecycle.js';
@@ -33,6 +34,8 @@ export const runIpoSync = serialise('ipo-sync', async () => {
   const { gmpChanges } = await syncIpos();
   refreshStatuses();
   await syncSubscriptions().catch((err) => log.warn(`subscription sync failed: ${err.message}`));
+  // Best-effort: NSE being unreachable must not cost us the IPO sync that just succeeded.
+  await syncNseSymbols().catch((err) => log.warn(`NSE symbol sync failed: ${err.message}`));
   clearResponseCache();
   await runGmpAlerts(gmpChanges);
 });

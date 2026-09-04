@@ -4,6 +4,8 @@ import { getIpo, gmpHistory, latestGmp, listIpos, type IpoRow, type IpoStatus } 
 import { listRegistrars } from '../registrars/index.js';
 import { cacheGet } from '../util/cache.js';
 import { daysBetween, todayIso } from '../util/parse.js';
+import { NSE_BID_VERIFY_URL } from '../sources/nse.js';
+import { getRegistrar } from '../registrars/index.js';
 
 export const iposRouter = Router();
 
@@ -44,6 +46,19 @@ function serialise(row: IpoRow) {
     listingDate: row.listing_date,
     logoUrl: row.logo_url,
     registrar: row.registrar_key,
+    /**
+     * NSE ticker, when NSE is currently answering bid/allotment queries for this issue.
+     * Non-null is what tells a client it can offer the NSE route; the client sends the user
+     * to NSE's own page to submit their PAN there, so the reCAPTCHA on that form is solved
+     * by the person it was meant for.
+     */
+    /**
+     * True when this issue's registrar will not answer without a captcha (Bigshare). Clients
+     * use it to route the user to NSE rather than putting a challenge in front of them.
+     */
+    registrarNeedsCaptcha: Boolean(getRegistrar(row.registrar_key)?.needsCaptcha),
+    nseSymbol: row.nse_symbol,
+    nseBidVerifyUrl: row.nse_symbol ? NSE_BID_VERIFY_URL : null,
     subscription: row.subscription_json ? JSON.parse(row.subscription_json) : null,
     gmp: gmp?.gmp ?? null,
     gmpPercent: gmp?.gmp_percent ?? null,

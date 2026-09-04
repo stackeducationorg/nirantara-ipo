@@ -166,6 +166,32 @@ export async function watchAllotments(): Promise<void> {
 
 /** Runs the full PAN sweep per account and pushes the aggregate result exactly once. */
 async function notifyAccounts(ipo: IpoRow): Promise<void> {
+  const adapter = getRegistrar(ipo.registrar_key);
+
+  // A captcha-gated registrar (Bigshare, Cameo) can never be swept unattended — there is
+  // nobody here to solve the challenge. Left as-is, the sweep below would retry every tick
+  // forever with an empty result each time, `outstanding` would never reach 0, and the
+  // account would simply never hear back after the initial "allotment is out" ping. Instead,
+  // tell each account once that their result is ready to view and needs a quick manual step,
+  // then close the watch — the same one-shot guarantee every other registrar gets.
+  if (adapter?.needsCaptcha) {
+    for (const accountId of audienceForIpo(ipo.id)) {
+      const key = `allotment_manual:${ipo.id}:${accountId}`;
+      if (!claimOnce(key)) continue;
+      await notify({
+        accountId,
+        ipoId: ipo.id,
+        kind: 'allotment_result',
+        title: `${ipo.name} — your result is ready`,
+        body: `${adapter.name} needs a quick captcha to show it. Open the app to finish the check.`,
+        data: { ipoId: ipo.id, manual: true },
+      });
+    }
+    setWatch(ipo.id, { state: 'done', error: null });
+    log.info(`${ipo.name}: captcha-gated registrar — nudged accounts to finish the check manually`);
+    return;
+  }
+
   const accounts = accountsWithPans();
   let outstanding = 0;
 

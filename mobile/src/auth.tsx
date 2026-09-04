@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { clearToken, getToken, setToken } from './api';
+import { registerForPush } from './push';
 import { api, type Account } from './queries';
 
 interface AuthContextValue {
@@ -28,6 +29,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       try {
         setAccount(await api.me());
+        // Waiting on this would hold the app on a loading screen for a permission dialog no
+        // one is looking at yet; it runs alongside the rest of startup instead.
+        void registerForPush();
       } catch {
         await clearToken();
       } finally {
@@ -42,6 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccount(result.account);
       // Nothing cached under the previous identity may leak into this one.
       queryClient.clear();
+      // A fresh sign-in is the moment a device should register for push, not whenever the
+      // user happens to open the Alerts tab — which for most people is never.
+      void registerForPush();
     },
     [queryClient],
   );

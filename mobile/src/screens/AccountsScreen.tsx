@@ -19,6 +19,7 @@ export function AccountsScreen() {
 
   const [pan, setPan] = useState('');
   const [label, setLabel] = useState('');
+  const [demat, setDemat] = useState('');
   const [copied, setCopied] = useState(false);
 
   const { data: pans, isLoading } = useQuery({ queryKey: ['pans'], queryFn: api.pans });
@@ -26,11 +27,29 @@ export function AccountsScreen() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['pans'] });
 
+  // NSDL numbers are "IN" plus 14 digits; CDSL numbers are 16 digits. The depository is
+  // inferred from the shape, so there is nothing for the user to choose.
+  const dematClean = demat.replace(/[\s-]/g, '').toUpperCase();
+  const dematValid = dematClean === '' || /^IN[0-9]{14}$/.test(dematClean) || /^[0-9]{16}$/.test(dematClean);
+  const depository = /^IN[0-9]{14}$/.test(dematClean) ? 'NSDL' : /^[0-9]{16}$/.test(dematClean) ? 'CDSL' : null;
+
+  // Either identifier is enough on its own, so each is only validated when filled in — but
+  // at least one has to be there or there is nothing to look an allotment up by.
+  const panFilled = pan.trim() !== '';
+  const panValid = !panFilled || PAN_RE.test(pan.toUpperCase());
+  const canSave = panValid && dematValid && (panFilled || dematClean !== '');
+
   const add = useMutation({
-    mutationFn: () => api.addPan({ pan: pan.toUpperCase(), label: label.trim() || 'Account' }),
+    mutationFn: () =>
+      api.addPan({
+        pan: panFilled ? pan.toUpperCase() : undefined,
+        label: label.trim() || 'Account',
+        demat: dematClean || undefined,
+      }),
     onSuccess: () => {
       setPan('');
       setLabel('');
+      setDemat('');
       void invalidate();
     },
   });
@@ -58,7 +77,9 @@ export function AccountsScreen() {
       <Text style={s.sub}>Every PAN saved here is checked on every IPO allotment, automatically.</Text>
 
       <Card style={{ padding: 16, marginBottom: 18 }}>
-        <Text style={{ color: t.textDim, fontSize: 12, fontWeight: '600', marginBottom: 5 }}>PAN NUMBER</Text>
+        <Text style={{ color: t.textDim, fontSize: 12, fontWeight: '600', marginBottom: 5 }}>
+          PAN NUMBER <Text style={{ color: t.textFaint, fontWeight: '400' }}>(or use a DP ID below)</Text>
+        </Text>
         <TextInput
           style={inputStyle}
           placeholder="ABCDE1234F"
@@ -69,6 +90,27 @@ export function AccountsScreen() {
           value={pan}
           onChangeText={(v) => setPan(v.toUpperCase())}
         />
+
+        <Text style={{ color: t.textDim, fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 5 }}>
+          DP ID / DEMAT NUMBER <Text style={{ color: t.textFaint, fontWeight: '400' }}>(optional)</Text>
+        </Text>
+        <TextInput
+          style={inputStyle}
+          placeholder="IN30012345678901 or 1234567890123456"
+          placeholderTextColor={t.textFaint}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={20}
+          value={demat}
+          onChangeText={(v) => setDemat(v.toUpperCase())}
+        />
+        <Text style={{ color: t.textFaint, fontSize: 11.5, marginTop: 5 }}>
+          {dematClean === ''
+            ? 'Either a PAN or a DP ID is enough. Adding both catches applications filed against either one.'
+            : depository
+              ? `Recognised as ${depository}.`
+              : 'Must be 16 digits (CDSL) or IN followed by 14 digits (NSDL).'}
+        </Text>
 
         <Text style={{ color: t.textDim, fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 5 }}>
           LABEL
@@ -88,7 +130,7 @@ export function AccountsScreen() {
           <Button
             title="Save PAN"
             onPress={() => add.mutate()}
-            disabled={!PAN_RE.test(pan.toUpperCase())}
+            disabled={!canSave}
             loading={add.isPending}
           />
         </View>
@@ -121,13 +163,14 @@ export function AccountsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={{ color: t.text, fontWeight: '600', fontSize: 14 }}>{p.label}</Text>
                 <Text style={{ color: t.textFaint, fontSize: 11.5 }}>
-                  {p.pan}
+                  {p.pan ?? ''}
+                  {p.demat ? `${p.pan ? ' · ' : ''}${p.depository} ${p.demat}` : ''}
                   {p.holderName ? ` · ${p.holderName}` : ''} · added {shortDate(p.createdAt.slice(0, 10))}
                 </Text>
               </View>
               <Pressable
                 onPress={() =>
-                  Alert.alert('Remove PAN', `Remove ${p.label} (${p.pan})?`, [
+                  Alert.alert('Remove PAN', `Remove ${p.label} (${p.pan ?? p.demat})?`, [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Remove', style: 'destructive', onPress: () => remove.mutate(p.id) },
                   ])

@@ -27,6 +27,18 @@ export interface Ipo {
   gmpUpdatedAt: string | null;
   daysToClose: number | null;
   daysToAllotment: number | null;
+  /**
+   * NSE's ticker for this issue, present only while NSE is answering bid/allotment queries
+   * for it (roughly T+1 to 10 days after close). Non-null is what enables the NSE route.
+   */
+  /**
+   * True when this issue's registrar demands a captcha (Bigshare). Users are sent to NSE
+   * instead of being shown the challenge.
+   */
+  registrarNeedsCaptcha: boolean;
+  nseSymbol: string | null;
+  /** NSE's own verification page. The user submits their PAN there, in their own browser. */
+  nseBidVerifyUrl: string | null;
   /** True once the registrar is actually answering allotment queries for this issue. */
   allotmentLive: boolean;
   gmpHistory?: GmpPoint[];
