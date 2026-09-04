@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { api, ApiError, type CaptchaChallenge } from '../api';
+import { api, ApiError } from '../api';
 import { money, num, relativeTime, shortDate } from '../format';
 import type { AllotmentResult, AllotmentSummary, Ipo } from '../types';
 import { IconAlert, IconClock } from './Icons';
@@ -120,37 +120,28 @@ export function AllotmentPanel({ ipo }: { ipo: Ipo }) {
   });
 
   /**
-   * Some registrars (Bigshare) will not answer without a captcha a human has read. The
-   * server returns 428 with the challenge attached; it is shown here and the answer is sent
-   * back with a retry. A captcha is spent on one lookup, so the retry names a single PAN.
+   * Some registrars (Bigshare) will not answer without a code a person has read. The applicant
+   * is never asked to read it: the server answers 428, and that is taken here purely as a signal
+   * that this issue belongs to the operator sweep. An issue whose registrar has not been
+   * resolved yet looks checkable until the first attempt, which is the case this covers.
    */
-  const [captcha, setCaptcha] = useState<CaptchaChallenge | null>(null);
-  const [answer, setAnswer] = useState('');
-  const [panForCaptcha, setPanForCaptcha] = useState('');
+  const [needsOperator, setNeedsOperator] = useState(false);
 
   const check = useMutation({
     mutationFn: (opts?: { panId?: string; captchaToken?: string; captchaAnswer?: string }) =>
       api.checkAllotment(ipo.id, opts),
     onSuccess: (data) => {
-      setCaptcha(null);
-      setAnswer('');
+      setNeedsOperator(false);
       queryClient.setQueryData(['allotment', ipo.id], data);
       void queryClient.invalidateQueries({ queryKey: ['allotment-history'] });
       void queryClient.invalidateQueries({ queryKey: ['pans'] });
     },
     onError: (err) => {
-      const body = err instanceof ApiError ? (err.body as { captcha?: CaptchaChallenge } | null) : null;
-      // A wrong answer comes back as another 428 with a *new* image — the spent one cannot
-      // be retried, so the prompt simply refreshes rather than closing.
-      if (body?.captcha) {
-        setCaptcha(body.captcha);
-        setAnswer('');
-        if (!panForCaptcha && activePansForCaptcha[0]) setPanForCaptcha(activePansForCaptcha[0].id);
-      }
+      const body = err instanceof ApiError ? (err.body as { captcha?: unknown } | null) : null;
+      // The challenge itself is discarded — it is never put in front of the applicant.
+      if (body?.captcha) setNeedsOperator(true);
     },
   });
-
-  const activePansForCaptcha = (pans ?? []).filter((p) => p.isActive);
 
   const today = new Date().toISOString().slice(0, 10);
   const beforeAllotment = Boolean(ipo.boaDate && today < ipo.boaDate);
@@ -224,123 +215,13 @@ export function AllotmentPanel({ ipo }: { ipo: Ipo }) {
         </div>
       )}
 
-      {captcha && (
-        <div style={{ padding: '0 16px 4px' }}>
-          <div className="card card-pad" style={{ background: 'var(--surface-2)' }}>
-            <div className="section-title" style={{ marginBottom: 6 }}>
-              This registrar needs a captcha
-            </div>
-            <p className="dim" style={{ margin: '0 0 12px', fontSize: 13 }}>
-              Bigshare asks for a code before it will answer. One code covers one account, so
-              pick which to check and type what you see.
-            </p>
-
-            {/*
-              Reading Bigshare's code is the slow way round. While NSE is still answering for
-              this issue it carries the same registrar-supplied allotment and asks only for a
-              PAN, so offer that first — it is the same answer with less work.
-            */}
-            {ipo.nseSymbol && ipo.nseBidVerifyUrl && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  flexWrap: 'wrap',
-                  margin: '0 0 14px',
-                  padding: '9px 11px',
-                  borderRadius: 8,
-                  background: 'var(--bg-soft)',
-                  border: '1px solid var(--line)',
-                  fontSize: 13,
-                }}
-              >
-                <span className="dim">
-                  Or check it on NSE instead — no code to read. Pick symbol{' '}
-                  <strong className="mono">{ipo.nseSymbol}</strong> and enter your PAN.
-                </span>
-                <a
-                  href={ipo.nseBidVerifyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="nse-link"
-                >
-                  Open NSE ↗
-                </a>
-              </div>
-            )}
-
-            <div className="field">
-              <label className="label" htmlFor="captcha-pan">
-                Account
-              </label>
-              <select
-                id="captcha-pan"
-                className="input"
-                value={panForCaptcha}
-                onChange={(e) => setPanForCaptcha(e.target.value)}
-              >
-                {activePansForCaptcha.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.holderName ?? p.label} — {p.pan ?? p.demat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <img
-              src={captcha.image}
-              alt="Captcha from the registrar"
-              style={{
-                display: 'block',
-                marginBottom: 10,
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: '#fff',
-                maxWidth: '100%',
-              }}
-            />
-
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                className="input mono"
-                placeholder="Type the code"
-                value={answer}
-                autoComplete="off"
-                autoCapitalize="characters"
-                onChange={(e) => setAnswer(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && answer.trim()) {
-                    check.mutate({ panId: panForCaptcha, captchaToken: captcha.token, captchaAnswer: answer.trim() });
-                  }
-                }}
-                style={{ flex: 1, textTransform: 'uppercase' }}
-              />
-              <button
-                className="btn primary"
-                disabled={!answer.trim() || !panForCaptcha || check.isPending}
-                onClick={() =>
-                  check.mutate({ panId: panForCaptcha, captchaToken: captcha.token, captchaAnswer: answer.trim() })
-                }
-              >
-                {check.isPending && <span className="spinner" />}
-                Submit
-              </button>
-              <button className="btn" onClick={() => setCaptcha(null)} disabled={check.isPending}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div style={{ padding: 16 }}>
         {/*
           Captcha registrars (Bigshare) are never shown to the user any more — NSE answers for
           the same issue with just a PAN, so the panel routes there instead of offering a check
           the server cannot complete.
         */}
-        {ipo.registrarNeedsCaptcha && !beforeAllotment ? (
+        {(ipo.registrarNeedsCaptcha || needsOperator) && !beforeAllotment ? (
           <NsePanel symbol={ipo.nseSymbol} url={ipo.nseBidVerifyUrl} registrar={summary?.registrar ?? null} />
         ) : (
         <button
