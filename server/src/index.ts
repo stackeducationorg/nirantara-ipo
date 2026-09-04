@@ -10,6 +10,7 @@ import { closeBrowser } from './registrars/browser.js';
 import { allotmentRouter } from './routes/allotment.js';
 import { applicationsRouter } from './routes/applications.js';
 import { hideIpo, listHiddenIpos, unhideIpo } from './services/ipoStore.js';
+import { broadcast } from './services/notify.js';
 import { appVersionRouter } from './routes/appVersion.js';
 import { authRouter } from './routes/auth.js';
 import { iposRouter } from './routes/ipos.js';
@@ -90,6 +91,50 @@ app.delete('/api/admin/hidden/:igId', (req, res) => {
   if (!requireAdmin(req, res)) return;
   const removed = unhideIpo(Number(req.params.igId));
   res.json({ ok: removed, hidden: listHiddenIpos() });
+});
+
+/**
+ * One message to every user, in-app and by push.
+ *
+ * Declared above the `/api/admin/:job` catch-all, which would otherwise match this path.
+ *
+ * This is the only route in the API that writes to every account at once and it cannot be
+ * recalled, so it is deliberately awkward: `dryRun: true` reports the reach without sending,
+ * and `dedupeKey` makes a retry after a timeout safe instead of doubling the blast.
+ */
+app.post('/api/admin/broadcast', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const { title, body, data, dedupeKey, dryRun } = (req.body ?? {}) as {
+    title?: string;
+    body?: string;
+    data?: Record<string, unknown>;
+    dedupeKey?: string;
+    dryRun?: boolean;
+  };
+
+  if (typeof title !== 'string' || title.trim().length === 0 || title.length > 100) {
+    res.status(400).json({ error: 'title is required (1-100 characters)' });
+    return;
+  }
+  if (typeof body !== 'string' || body.trim().length === 0 || body.length > 500) {
+    res.status(400).json({ error: 'body is required (1-500 characters)' });
+    return;
+  }
+
+  try {
+    const result = await broadcast({
+      title: title.trim(),
+      body: body.trim(),
+      data,
+      dedupeKey: typeof dedupeKey === 'string' ? dedupeKey : undefined,
+      dryRun: dryRun === true,
+    });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    log.error(`broadcast failed: ${(err as Error).message}`);
+    res.status(500).json({ error: (err as Error).message });
+  }
 });
 
 /**

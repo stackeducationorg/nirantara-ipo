@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Expo, type ExpoPushMessage } from 'expo-server-sdk';
 import webpush from 'web-push';
 import { config } from '../config.js';
-import { db } from '../db/index.js';
+import { claimOnce, db } from '../db/index.js';
 import { logger } from '../util/logger.js';
 
 const log = logger('notify');
@@ -28,7 +28,8 @@ export type NotificationKind =
   | 'allotment_out'
   | 'allotment_result'
   | 'listing_day'
-  | 'gmp_move';
+  | 'gmp_move'
+  | 'announcement';
 
 export interface NotificationInput {
   accountId: string;
@@ -47,6 +48,8 @@ const PREF_COLUMN: Record<NotificationKind, string | null> = {
   allotment_result: 'allotment_out',
   listing_day: 'listing_day',
   gmp_move: 'gmp_moves',
+  // Operator announcements are not IPO alerts, so no per-kind toggle gates them.
+  announcement: null,
 };
 
 export function getPrefs(accountId: string) {
@@ -188,4 +191,89 @@ export function accountsWatching(ipoId: string): string[] {
 export function audienceForIpo(ipoId: string): string[] {
   const watchers = new Set(accountsWatching(ipoId));
   return accountsWithPans().filter((id) => !getPrefs(id).only_watchlist || watchers.has(id));
+}
+
+export interface BroadcastInput {
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  /** Reserve this key before sending, so a retried or double-submitted trigger cannot fan out twice. */
+  dedupeKey?: string;
+  /** Count the audience and write nothing — used to check reach before a real send. */
+  dryRun?: boolean;
+}
+
+export interface BroadcastResult {
+  accounts: number;
+  devices: number;
+  expoTokens: number;
+  webPushSubs: number;
+  dryRun: boolean;
+  /** False when dedupeKey was already spent, i.e. this exact broadcast had already gone out. */
+  sent: boolean;
+}
+
+/**
+ * Sends one message to the whole user base: an in-app record for every account plus a push to
+ * every registered device.
+ *
+ * Deliberately separate from notify(), which fans out one account at a time. At the sizes this
+ * has to survive, per-account sending would mean one Expo round trip per user; here every token
+ * is collected first so the SDK can batch them into its own 100-message chunks, and the in-app
+ * rows are written in a single transaction.
+ *
+ * There is no unsend. A broadcast reaches every phone that has the app installed, so callers
+ * should pass dryRun first to see the reach, and a dedupeKey to make a retry safe.
+ */
+export async function broadcast(input: BroadcastInput): Promise<BroadcastResult> {
+  const accounts = (db.prepare('SELECT id FROM accounts').all() as { id: string }[]).map((r) => r.id);
+  const devices = db
+    .prepare(
+      `SELECT token_hash, expo_token, webpush_sub FROM device_tokens
+       WHERE expo_token IS NOT NULL OR webpush_sub IS NOT NULL`,
+    )
+    .all() as DeviceRow[];
+
+  const expoTokens = devices.flatMap((d) => (d.expo_token ? [d.expo_token] : []));
+  const webSubs = devices.flatMap((d) => (d.webpush_sub ? [{ hash: d.token_hash, sub: d.webpush_sub }] : []));
+
+  const tally = {
+    accounts: accounts.length,
+    devices: devices.length,
+    expoTokens: expoTokens.length,
+    webPushSubs: webSubs.length,
+  };
+
+  if (input.dryRun) {
+    log.info(`[broadcast dry run] "${input.title}" would reach ${tally.accounts} account(s), ${tally.devices} device(s)`);
+    return { ...tally, dryRun: true, sent: false };
+  }
+
+  // Claimed before anything is written, so a duplicate POST is a no-op rather than a second blast.
+  if (input.dedupeKey && !claimOnce(`broadcast:${input.dedupeKey}`)) {
+    log.warn(`broadcast "${input.dedupeKey}" already sent — ignoring repeat`);
+    return { ...tally, dryRun: false, sent: false };
+  }
+
+  const insert = db.prepare(
+    `INSERT INTO notifications (id, account_id, ipo_id, kind, title, body, data_json)
+     VALUES (?, ?, NULL, 'announcement', ?, ?, ?)`,
+  );
+  const dataJson = input.data ? JSON.stringify(input.data) : null;
+  db.transaction((ids: string[]) => {
+    for (const accountId of ids) insert.run(crypto.randomUUID(), accountId, input.title, input.body, dataJson);
+  })(accounts);
+
+  const payload: NotificationInput = {
+    accountId: '',
+    kind: 'announcement',
+    title: input.title,
+    body: input.body,
+    data: input.data,
+  };
+
+  await Promise.all([sendExpo(expoTokens, payload), sendWebPush(webSubs, payload)]);
+
+  log.info(`[broadcast] "${input.title}" -> ${tally.accounts} account(s), ${tally.devices} device(s)`);
+  return { ...tally, dryRun: false, sent: true };
 }
