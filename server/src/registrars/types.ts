@@ -24,7 +24,7 @@ export interface DematAccount {
   id: string;
 }
 
-export type SearchBy = 'pan' | 'demat';
+export type SearchBy = 'pan' | 'demat' | 'application';
 
 /** A captcha challenge a registrar issued, to be shown to the user and answered by them. */
 export interface CaptchaChallenge {
@@ -32,6 +32,12 @@ export interface CaptchaChallenge {
   token: string;
   /** data: URI of the challenge image, safe to render directly in an <img>. */
   image: string;
+  /**
+   * Present when the challenge was already solved automatically (e.g. by the OCR hook),
+   * so the answer can travel back with the token on a retry. Absent on a freshly issued
+   * challenge that still has to be read by a human.
+   */
+  answer?: string;
 }
 
 export interface CaptchaAnswer {
@@ -56,6 +62,8 @@ export class CaptchaRequiredError extends Error {
 export interface AllotmentQuery {
   companyCode: string;
   pan: string;
+  /** Application number, for lookups by application rather than PAN (some registrars accept one). */
+  applicationNo?: string;
   /** Supplied on a retry, after the user has read the challenge image. */
   captcha?: CaptchaAnswer | null;
   /** Set when the saved applicant also has a demat account on file. */
@@ -90,10 +98,25 @@ export interface RegistrarAdapter {
    */
   searchBy: SearchBy[];
   /**
+   * The order in which identifiers should be tried when more than one is available
+   * (e.g. a saved entry with both a PAN and a demat account). Defaults to
+   * `['pan', 'demat']` when unset. A registrar whose demat lookup bypasses its captcha
+   * gate lists `demat` first so automated checks avoid the captcha path whenever a
+   * demat account is on file.
+   */
+  searchOrder?: SearchBy[];
+  /**
    * True when lookups need a captcha the user must read. Callers should expect
    * CaptchaRequiredError from check() and be ready to prompt.
    */
   needsCaptcha?: boolean;
+  /**
+   * The registrar can be identified and mapped from its company list, but its allotment
+   * lookup is not supported — check() will throw. The watcher marks such issues 'unsupported'
+   * rather than announcing a check it cannot deliver. Resolution still works, so these issues
+   * are still counted and named.
+   */
+  resolveOnly?: boolean;
   /** Fetches a fresh challenge to show the user. Only defined when needsCaptcha. */
   newCaptcha?(): Promise<CaptchaChallenge>;
   /** The issues this registrar currently has open for allotment lookup. */

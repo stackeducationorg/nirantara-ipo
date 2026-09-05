@@ -116,9 +116,6 @@ ON CONFLICT(ipo_id, pan_id) DO UPDATE SET
 
 /**
  * Checks a single PAN against the registrar and persists the outcome.
- *
- * Exported for the operator-driven sweep (`adminSweep.ts`), which walks one solved captcha
- * across every account's book rather than a single account's.
  */
 export async function checkOne(
   ipo: IpoRow,

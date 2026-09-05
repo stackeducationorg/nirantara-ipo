@@ -85,6 +85,17 @@ export const config = {
   enableBrowserRegistrars: optional('ENABLE_BROWSER_REGISTRARS', 'true') !== 'false',
   browserHeadless: optional('BROWSER_HEADLESS', 'true') !== 'false',
 
+  /**
+   * Bigshare's official allotment API. Empty = not provisioned yet, and the adapter stays
+   * resolve-only (issues are still identified and counted, just not checked). Set both once
+   * Bigshare issues API access and the lookup runs automatically like every other registrar,
+   * with no captcha and no human in the loop.
+   */
+  bigshare: {
+    apiBase: optional('BIGSHARE_API_BASE'),
+    apiKey: optional('BIGSHARE_API_KEY'),
+  },
+
   investorgain: {
     apiBase: 'https://webnodejs.investorgain.com/cloud/v2',
     siteBase: 'https://www.investorgain.com',

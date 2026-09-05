@@ -124,6 +124,16 @@ export async function watchAllotments(): Promise<void> {
         continue;
       }
 
+      // Registrars we can identify but not check unattended — resolve-only (Bigshare) or
+      // captcha-gated (Cameo). Mark the issue unsupported so the watch stops instead of
+      // looping every tick, and so nothing announces a check that will never be delivered.
+      const adapter = getRegistrar(ipo.registrar_key);
+      if (!adapter || adapter.resolveOnly || adapter.needsCaptcha) {
+        watchState(ipo.id);
+        setWatch(ipo.id, { state: 'unsupported', error: null });
+        continue;
+      }
+
       const state = watchState(ipo.id);
 
       if (state.state !== 'live') {
@@ -166,33 +176,8 @@ export async function watchAllotments(): Promise<void> {
 
 /** Runs the full PAN sweep per account and pushes the aggregate result exactly once. */
 async function notifyAccounts(ipo: IpoRow): Promise<void> {
-  const adapter = getRegistrar(ipo.registrar_key);
-
-  // A captcha-gated registrar (Bigshare, Cameo) can never be swept unattended — there is
-  // nobody here to solve the challenge. Left as-is, the sweep below would retry every tick
-  // forever with an empty result each time, `outstanding` would never reach 0, and the
-  // account would simply never hear back after the initial "allotment is out" ping. Instead,
-  // say once that the result is on its way and close the watch; the operator sweep delivers
-  // the real figures later under its own dedupe key. Nothing is asked of the applicant —
-  // they have no way to help, and the app tells them so.
-  if (adapter?.needsCaptcha) {
-    for (const accountId of audienceForIpo(ipo.id)) {
-      const key = `allotment_manual:${ipo.id}:${accountId}`;
-      if (!claimOnce(key)) continue;
-      await notify({
-        accountId,
-        ipoId: ipo.id,
-        kind: 'allotment_result',
-        title: `${ipo.name} — allotment is out`,
-        body: `Results are being collected for every account. We'll send yours the moment it lands.`,
-        data: { ipoId: ipo.id, pendingSweep: true },
-      });
-    }
-    setWatch(ipo.id, { state: 'done', error: null });
-    log.info(`${ipo.name}: captcha-gated registrar — told accounts their result is coming, awaiting operator sweep`);
-    return;
-  }
-
+  // Only reached for checkable registrars: the watch loop marks resolve-only and captcha-gated
+  // issues 'unsupported' and skips them before they get here.
   const accounts = accountsWithPans();
   let outstanding = 0;
 

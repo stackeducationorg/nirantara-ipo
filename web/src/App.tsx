@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth';
 import { Shell } from './components/Shell';
 import { Accounts } from './pages/Accounts';
@@ -14,18 +14,9 @@ import { Disclaimer, Privacy, Terms } from './pages/Legal';
 import { PublicShell } from './components/PublicShell';
 import { Money } from './pages/Money';
 import { SignIn } from './pages/SignIn';
-import { Admin } from './pages/Admin';
 
 export function App() {
   const { account, loading } = useAuth();
-  const { pathname } = useLocation();
-
-  /**
-   * The operator console authenticates with its own ADMIN_TOKEN, not a user session, so it is
-   * handled ahead of the sign-in gate: it must open whether or not anyone is signed in, and it
-   * must render outside the app shell rather than inside a nav built for account holders.
-   */
-  if (pathname === '/admin') return <Admin />;
 
   // Hold the first paint until the stored session is either restored or rejected, so neither
   // the landing page nor the sign-in screen flashes for an already-authenticated user.

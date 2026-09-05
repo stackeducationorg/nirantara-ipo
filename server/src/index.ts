@@ -10,7 +10,6 @@ import { closeBrowser } from './registrars/browser.js';
 import { allotmentRouter } from './routes/allotment.js';
 import { applicationsRouter } from './routes/applications.js';
 import { hideIpo, listHiddenIpos, unhideIpo } from './services/ipoStore.js';
-import { sweepCaptcha, sweepTargets, sweepWithCaptcha } from './services/adminSweep.js';
 import { appVersionRouter } from './routes/appVersion.js';
 import { authRouter } from './routes/auth.js';
 import { iposRouter } from './routes/ipos.js';
@@ -91,46 +90,6 @@ app.delete('/api/admin/hidden/:igId', (req, res) => {
   if (!requireAdmin(req, res)) return;
   const removed = unhideIpo(Number(req.params.igId));
   res.json({ ok: removed, hidden: listHiddenIpos() });
-});
-
-/**
- * Operator-driven allotment sweep for captcha registrars.
- *
- * Declared before the `/api/admin/:job` catch-all below, which would otherwise swallow the
- * single-segment forms of these paths.
- */
-app.get('/api/admin/allotment/pending', (req, res) => {
-  if (!requireAdmin(req, res)) return;
-  res.json(sweepTargets());
-});
-
-app.get('/api/admin/allotment/:ipoId/captcha', async (req, res) => {
-  if (!requireAdmin(req, res)) return;
-  try {
-    res.json(await sweepCaptcha(req.params.ipoId));
-  } catch (err) {
-    res.status(502).json({ error: (err as Error).message });
-  }
-});
-
-app.post('/api/admin/allotment/:ipoId/sweep', async (req, res) => {
-  if (!requireAdmin(req, res)) return;
-
-  const { captchaToken, captchaAnswer } = (req.body ?? {}) as {
-    captchaToken?: string;
-    captchaAnswer?: string;
-  };
-  if (!captchaToken || !captchaAnswer) {
-    res.status(400).json({ error: 'captchaToken and captchaAnswer are both required' });
-    return;
-  }
-
-  try {
-    res.json(await sweepWithCaptcha(req.params.ipoId, { token: captchaToken, answer: captchaAnswer }));
-  } catch (err) {
-    log.error(`admin sweep failed: ${(err as Error).message}`);
-    res.status(502).json({ error: (err as Error).message });
-  }
 });
 
 /**
