@@ -5,7 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { config } from './config.js';
 import { db } from './db/index.js';
-import { startJobs, runAllotmentWatch, runIpoSync } from './jobs/index.js';
+import { startJobs, runAllotmentWatch, runIpoSync, runRegistrarResolve } from './jobs/index.js';
 import { closeBrowser } from './registrars/browser.js';
 import { allotmentRouter } from './routes/allotment.js';
 import { applicationsRouter } from './routes/applications.js';
@@ -143,6 +143,7 @@ app.post('/api/admin/:job', async (req, res) => {
   const jobs: Record<string, () => Promise<void>> = {
     sync: runIpoSync,
     'watch-allotments': runAllotmentWatch,
+    'resolve-registrars': runRegistrarResolve,
   };
   const job = jobs[req.params.job];
   if (!job) {

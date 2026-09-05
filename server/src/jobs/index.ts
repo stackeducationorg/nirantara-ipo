@@ -5,6 +5,7 @@ import { refreshStatuses, syncIpos, syncSubscriptions } from '../services/ipoSto
 import { syncNseSymbols } from '../services/nseSymbols.js';
 import { clearResponseCache } from '../util/cache.js';
 import { watchAllotments } from './allotmentWatcher.js';
+import { resolveRegistrars } from './registrarResolver.js';
 import { runGmpAlerts, runLifecycleAlerts } from './lifecycle.js';
 
 const log = logger('jobs');
@@ -36,6 +37,9 @@ export const runIpoSync = serialise('ipo-sync', async () => {
   await syncSubscriptions().catch((err) => log.warn(`subscription sync failed: ${err.message}`));
   // Best-effort: NSE being unreachable must not cost us the IPO sync that just succeeded.
   await syncNseSymbols().catch((err) => log.warn(`NSE symbol sync failed: ${err.message}`));
+  // Straight after the sync, while every newly ingested issue is still inside its registrar's
+  // dropdown window. Left until allotment day this mapping is often no longer obtainable.
+  await resolveRegistrars().catch((err) => log.warn(`registrar resolve failed: ${err.message}`));
   clearResponseCache();
   await runGmpAlerts(gmpChanges);
 });
@@ -47,6 +51,7 @@ export const runGmpSync = serialise('gmp-sync', async () => {
 });
 
 export const runAllotmentWatch = serialise('allotment-watch', watchAllotments);
+export const runRegistrarResolve = serialise('registrar-resolve', resolveRegistrars);
 export const runLifecycle = serialise('lifecycle', runLifecycleAlerts);
 
 export function startJobs(): void {
