@@ -14,9 +14,9 @@ export const AD_CLIENT = 'ca-pub-3938222693637430';
 
 export const AD_SLOTS = {
   /** Below the board on /gmp. */
-  gmpBoard: '',
+  gmpBoard: '6435962083',
   /** Below the issue detail on /ipo/:id. */
-  ipoDetail: '',
+  ipoDetail: '6435962083',
   /** Below the guide on /ipo-allotment-status. */
-  allotmentGuide: '',
+  allotmentGuide: '6435962083',
 } as const;
