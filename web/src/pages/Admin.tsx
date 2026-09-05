@@ -287,6 +287,18 @@ export function Admin() {
                   <div className="dim" style={{ fontSize: 13, marginTop: 4 }}>
                     {t.pending} pending · {t.settled} already done
                   </div>
+                  {/*
+                    The number that actually decides whether this is a minute's work or an
+                    evening's: PANs with no application ride along free on one code.
+                  */}
+                  <div
+                    style={{ fontSize: 13, marginTop: 4, fontWeight: 600 }}
+                    className={t.applicants > 5 ? 'neg' : 'pos'}
+                  >
+                    {t.applicants === 0
+                      ? 'likely 1 code — nobody here applied'
+                      : `about ${t.applicants} code${t.applicants === 1 ? '' : 's'} — one per applicant`}
+                  </div>
                 </div>
                 <button className="btn primary sm" disabled={busy} onClick={() => void start(t)}>
                   Solve

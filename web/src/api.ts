@@ -186,6 +186,12 @@ export interface SweepTarget {
   registrarName: string | null;
   pending: number;
   settled: number;
+  /**
+   * Roughly how many codes this issue costs. The registrar spends a solved code only when it
+   * returns a real record, so PANs that never applied are free and ride along on the same code.
+   * Counted from applications recorded in the app, so treat it as a floor.
+   */
+  applicants: number;
 }
 
 export interface SweepOutcome {

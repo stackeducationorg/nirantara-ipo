@@ -46,6 +46,17 @@ export interface SweepTarget {
   pending: number;
   /** Applicants already settled — these are skipped on every later sweep. */
   settled: number;
+  /**
+   * Roughly how many codes this issue will cost.
+   *
+   * Bigshare spends a solved code only when it returns an actual record; a PAN with no
+   * application costs nothing and the same code carries on. So the bill is one code per real
+   * applicant, not per PAN — an issue with 83 pending and nobody who applied clears on one.
+   *
+   * Counted from applications recorded in the app, so it is a floor: someone who applied
+   * without recording it here still turns up as a record and still costs a code.
+   */
+  applicants: number;
 }
 
 /**
@@ -57,7 +68,10 @@ export function sweepTargets(): SweepTarget[] {
     .prepare(
       `SELECT i.id, i.name, i.boa_date, i.registrar_key,
               SUM(CASE WHEN COALESCE(r.status, '') IN (${SETTLED_SQL}) THEN 0 ELSE 1 END) AS pending,
-              SUM(CASE WHEN COALESCE(r.status, '') IN (${SETTLED_SQL}) THEN 1 ELSE 0 END) AS settled
+              SUM(CASE WHEN COALESCE(r.status, '') IN (${SETTLED_SQL}) THEN 1 ELSE 0 END) AS settled,
+              SUM(CASE WHEN COALESCE(r.status, '') IN (${SETTLED_SQL}) THEN 0
+                       WHEN EXISTS (SELECT 1 FROM applications a WHERE a.ipo_id = i.id AND a.pan_id = p.id)
+                       THEN 1 ELSE 0 END) AS applicants
          FROM ipos i
          CROSS JOIN pans p
          LEFT JOIN allotment_results r ON r.pan_id = p.id AND r.ipo_id = i.id
@@ -75,6 +89,7 @@ export function sweepTargets(): SweepTarget[] {
     registrar_key: string | null;
     pending: number;
     settled: number;
+    applicants: number;
   }[];
 
   return rows.flatMap((row) => {
@@ -91,6 +106,7 @@ export function sweepTargets(): SweepTarget[] {
         registrarName: adapter.name,
         pending: Number(row.pending),
         settled: Number(row.settled),
+        applicants: Number(row.applicants),
       },
     ];
   });
