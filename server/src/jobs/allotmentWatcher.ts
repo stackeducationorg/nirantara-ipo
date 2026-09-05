@@ -172,8 +172,9 @@ async function notifyAccounts(ipo: IpoRow): Promise<void> {
   // nobody here to solve the challenge. Left as-is, the sweep below would retry every tick
   // forever with an empty result each time, `outstanding` would never reach 0, and the
   // account would simply never hear back after the initial "allotment is out" ping. Instead,
-  // tell each account once that their result is ready to view and needs a quick manual step,
-  // then close the watch — the same one-shot guarantee every other registrar gets.
+  // say once that the result is on its way and close the watch; the operator sweep delivers
+  // the real figures later under its own dedupe key. Nothing is asked of the applicant —
+  // they have no way to help, and the app tells them so.
   if (adapter?.needsCaptcha) {
     for (const accountId of audienceForIpo(ipo.id)) {
       const key = `allotment_manual:${ipo.id}:${accountId}`;
@@ -182,13 +183,13 @@ async function notifyAccounts(ipo: IpoRow): Promise<void> {
         accountId,
         ipoId: ipo.id,
         kind: 'allotment_result',
-        title: `${ipo.name} — your result is ready`,
-        body: `${adapter.name} needs a quick captcha to show it. Open the app to finish the check.`,
-        data: { ipoId: ipo.id, manual: true },
+        title: `${ipo.name} — allotment is out`,
+        body: `Results are being collected for every account. We'll send yours the moment it lands.`,
+        data: { ipoId: ipo.id, pendingSweep: true },
       });
     }
     setWatch(ipo.id, { state: 'done', error: null });
-    log.info(`${ipo.name}: captcha-gated registrar — nudged accounts to finish the check manually`);
+    log.info(`${ipo.name}: captcha-gated registrar — told accounts their result is coming, awaiting operator sweep`);
     return;
   }
 
