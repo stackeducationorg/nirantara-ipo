@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { Logo, Section } from '../components/IpoCard';
 import { IconChevronRight, IconInbox, IconWallet } from '../components/Icons';
-import { NseCheck } from '../components/NseCheck';
 import { money, num, relativeTime, shortDate } from '../format';
 
 export function Allotment() {
@@ -100,20 +99,14 @@ export function Allotment() {
         <Section title="Waiting on results" count={dashboard.awaitingAllotment.length}>
           <div className="ipo-list">
             {dashboard.awaitingAllotment.map((ipo) => (
-              <div key={ipo.id}>
-                <Link to={`/ipo/${ipo.id}`} className="ipo-row">
-                  <Logo ipo={ipo} />
-                  <div className="ipo-main">
-                    <div className="ipo-name">{ipo.name}</div>
-                    <div className="ipo-meta">Allotment {shortDate(ipo.boaDate)}</div>
-                  </div>
-                  <IconChevronRight size={15} className="faint" />
-                </Link>
-                {/* Only while NSE is still answering for this issue. */}
-                {ipo.nseSymbol && ipo.nseBidVerifyUrl && (
-                  <NseCheck symbol={ipo.nseSymbol} url={ipo.nseBidVerifyUrl} />
-                )}
-              </div>
+              <Link key={ipo.id} to={`/ipo/${ipo.id}`} className="ipo-row">
+                <Logo ipo={ipo} />
+                <div className="ipo-main">
+                  <div className="ipo-name">{ipo.name}</div>
+                  <div className="ipo-meta">Allotment {shortDate(ipo.boaDate)}</div>
+                </div>
+                <IconChevronRight size={15} className="faint" />
+              </Link>
             ))}
           </div>
         </Section>

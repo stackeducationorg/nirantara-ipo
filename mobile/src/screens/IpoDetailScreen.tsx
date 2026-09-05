@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { Banner, Button, Card, Logo, Pill, Stat, makeStyles } from '../components';
 import { ApplyPanel } from '../components/ApplyPanel';
 import { gmpText, gmpTone, money, num, relativeTime, shortDate, statusLabel } from '../format';
@@ -225,22 +225,10 @@ function AllotmentPanel({ ipo }: { ipo: Ipo }) {
           for anyone who would rather not wait for that sweep.
         */}
         {ipo.registrarNeedsCaptcha && !beforeAllotment ? (
-          <>
-            <Banner tone="info">
-              This registrar needs a code read by a person, so we solve it once for everyone and
-              send your result the moment it lands. Nothing for you to do.
-            </Banner>
-            {ipo.nseSymbol && ipo.nseBidVerifyUrl && (
-              <Pressable
-                onPress={() => void Linking.openURL(ipo.nseBidVerifyUrl!)}
-                style={{ paddingVertical: 11, alignItems: 'center' }}
-              >
-                <Text style={{ color: t.accent, fontSize: 13, fontWeight: '600' }}>
-                  See it now on NSE — symbol {ipo.nseSymbol} ↗
-                </Text>
-              </Pressable>
-            )}
-          </>
+          <Banner tone="info">
+            This registrar needs a code read by a person, so we solve it once for everyone and
+            send your result the moment it lands. Nothing for you to do.
+          </Banner>
         ) : (
         <Button
           title={

@@ -5,7 +5,7 @@ import { api, ApiError } from '../api';
 import { money, num, relativeTime, shortDate } from '../format';
 import type { AllotmentResult, AllotmentSummary, Ipo } from '../types';
 import { IconAlert, IconClock } from './Icons';
-import { NsePanel } from './NseCheck';
+import { OperatorNotice } from './OperatorNotice';
 
 const STATUS_TEXT: Record<AllotmentResult['status'], string> = {
   allotted: 'Allotted',
@@ -222,7 +222,7 @@ export function AllotmentPanel({ ipo }: { ipo: Ipo }) {
           the server cannot complete.
         */}
         {(ipo.registrarNeedsCaptcha || needsOperator) && !beforeAllotment ? (
-          <NsePanel symbol={ipo.nseSymbol} url={ipo.nseBidVerifyUrl} registrar={summary?.registrar ?? null} />
+          <OperatorNotice registrar={summary?.registrar ?? null} hasResults={hasResults} />
         ) : (
         <button
           className="btn primary block"
