@@ -4,6 +4,7 @@ import { toInt } from '../util/parse.js';
 import type {
   AllotmentLookup,
   AllotmentQuery,
+  CaptchaAnswer,
   CaptchaChallenge,
   RegistrarAdapter,
   RegistrarCompany,
