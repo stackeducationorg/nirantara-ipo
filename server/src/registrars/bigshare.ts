@@ -103,6 +103,7 @@ function isValidPan(pan: string): boolean {
 function toNum(value: unknown): number {
   if (value === undefined || value === null || value === '') return 0;
   const n = toInt(value);
+  if (n === null) return 0;
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -184,7 +185,7 @@ async function listCompanies(): Promise<RegistrarCompany[]> {
 /**
  * Shared request builder; identical shape to the site's own XHR.
  */
-function buildPayload(query: AllotmentQuery, captcha: CaptchaChallenge | undefined): Payload {
+function buildPayload(query: AllotmentQuery, captcha: CaptchaChallenge | CaptchaAnswer | undefined): Payload {
   const { companyCode, by } = query;
   const useApplication = by === 'application';
   const usePan = by === 'pan';
@@ -244,7 +245,7 @@ function rowToLookup(rec: BigshareRecord, raw: unknown): AllotmentLookup {
 function handleResponse(d: BigshareData): AllotmentLookup {
   switch (d.Status) {
     case 'CAPTCHA':
-      throw new CaptchaRequiredError(d.Message ?? 'Invalid captcha code');
+      throw new RegistrarError(d.Message ?? 'Invalid captcha code');
     case 'RATELIMIT':
       throw new RegistrarError(d.Message ?? 'Bigshare throttled this connection. Slow down and retry.');
     case 'WARMING':
