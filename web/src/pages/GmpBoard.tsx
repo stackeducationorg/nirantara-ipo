@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { Logo } from '../components/IpoCard';
 import { IconInfo, IconTrend } from '../components/Icons';
+import { AdSlot } from '../components/AdSlot';
+import { AD_SLOTS } from '../ads';
 import { useSeo } from '../seo';
 import { gmpPerLot, gmpText, gmpTone, money, relativeTime, signedMoney, statusLabel } from '../format';
 
@@ -107,6 +109,8 @@ export function GmpBoard() {
           })}
         </div>
       )}
+
+      <AdSlot slot={AD_SLOTS.gmpBoard} />
     </div>
   );
 }

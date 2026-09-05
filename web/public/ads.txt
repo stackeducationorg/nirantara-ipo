@@ -1,0 +1,4 @@
+# Authorised digital sellers. AdSense will not serve on the domain until it can fetch this
+# file and find its own publisher ID in it, so it has to sit at the site root.
+# The trailing ID is Google's certification authority ID and is the same for every publisher.
+google.com, pub-3938222693637430, DIRECT, f08c47fec0942fa0

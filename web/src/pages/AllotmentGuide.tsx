@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { AdSlot } from '../components/AdSlot';
+import { AD_SLOTS } from '../ads';
 import { useJsonLd, useSeo } from '../seo';
 
 /**
@@ -164,6 +166,8 @@ export function AllotmentGuide() {
         <Link to="/disclaimer">Disclaimer</Link>
         <Link to="/privacy">How your PAN is stored</Link>
       </div>
+
+      <AdSlot slot={AD_SLOTS.allotmentGuide} />
     </div>
   );
 }

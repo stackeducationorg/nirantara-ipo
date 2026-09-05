@@ -31,6 +31,17 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
+    <!--
+      AdSense loader. Kept in the document head rather than injected by React so it is present
+      for Google's site review, which fetches the page without running the app.
+    -->
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3938222693637430"
+      crossorigin="anonymous"
+    ></script>
+
     <link rel="preconnect" href="https://rsms.me/" />
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

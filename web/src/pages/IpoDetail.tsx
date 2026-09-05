@@ -7,6 +7,8 @@ import { useJsonLd, useSeo, SITE_ORIGIN } from '../seo';
 import { AllotmentOdds } from '../components/AllotmentOdds';
 import { AllotmentPanel } from '../components/AllotmentPanel';
 import { Logo } from '../components/IpoCard';
+import { AdSlot } from '../components/AdSlot';
+import { AD_SLOTS } from '../ads';
 import { IconArrowLeft } from '../components/Icons';
 import { gmpText, gmpTone, money, relativeTime, shortDate, statusLabel } from '../format';
 import type { Ipo } from '../types';
@@ -295,6 +297,8 @@ export function IpoDetail() {
         </h2>
         <Timeline ipo={ipo} />
       </div>
+
+      <AdSlot slot={AD_SLOTS.ipoDetail} />
     </div>
   );
 }
