@@ -340,11 +340,15 @@ export const bigshare: RegistrarAdapter = {
   match: ['bigshare'],
   searchBy: ['application', 'pan', 'demat'],
   /**
-   * Not a blanket "needs captcha": AP/BN are ungated today and PAN is automated
-   * through the OCR hook. `check` only throws CaptchaRequiredError (with a fresh
-   * challenge to show the user) when OCR is unconfigured or exhausted.
+   * PAN lookups are captcha-gated server-side (AP/BN are not, but PAN is how every
+   * saved entry is actually searched). This used to read false on the theory that the
+   * OCR hook below made it self-service, but unattended OCR solving fires a real
+   * captcha-fetch per PAN — across a full saved book that's enough requests to get
+   * Bigshare's own server to rate-limit the whole batch (HTTP 429 on every entry).
+   * true restores the same skip-on-auto / relay-one-challenge-to-the-human-on-manual
+   * behaviour every other gated registrar already uses (see cameo.ts).
    */
-  needsCaptcha: false,
+  needsCaptcha: true,
   newCaptcha,
   listCompanies,
   check,
