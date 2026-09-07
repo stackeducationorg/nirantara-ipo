@@ -22,3 +22,10 @@ mobile/ios/
 # Credential dumps must never be committed, wherever they land.
 nirantara-credentials.txt
 *credentials*.txt
+
+# Belt-and-braces for secret material that does not carry "credentials" in its name.
+# NOTE: PASSWORD.MD and google creds/ are ALREADY TRACKED in this repo's history, so these
+# rules do not untrack them — they only stop new files of the same shape being added. Purging
+# the existing ones needs a history rewrite plus rotation of the exposed OAuth client secret.
+client_secret_*.json
+google-services*.json

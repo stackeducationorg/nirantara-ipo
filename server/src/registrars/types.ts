@@ -99,17 +99,36 @@ export interface RegistrarAdapter {
   searchBy: SearchBy[];
   /**
    * The order in which identifiers should be tried when more than one is available
-   * (e.g. a saved entry with both a PAN and a demat account). Defaults to
-   * `['pan', 'demat']` when unset. A registrar whose demat lookup bypasses its captcha
-   * gate lists `demat` first so automated checks avoid the captcha path whenever a
-   * demat account is on file.
+   * (e.g. a saved entry with both a PAN and a demat account). Falls back to the order
+   * declared in `searchBy` when unset. A registrar whose demat lookup sidesteps its captcha
+   * gate lists `demat` first so automated checks avoid the gated path whenever a demat
+   * account is on file.
+   *
+   * Read through `searchRoutes()`, which re-sorts this so ungated routes come first —
+   * this only decides the order *within* the open group and within the gated one.
    */
   searchOrder?: SearchBy[];
   /**
    * True when lookups need a captcha the user must read. Callers should expect
    * CaptchaRequiredError from check() and be ready to prompt.
+   *
+   * This is the registrar-wide default. Where a registrar leaves some of its lookup paths
+   * open, list those in `captchaFreeSearchBy` — the gate is then decided per query rather
+   * than per registrar.
    */
   needsCaptcha?: boolean;
+  /**
+   * Identifier kinds this registrar answers with no captcha, even when `needsCaptcha` is set.
+   *
+   * A registrar may gate only the identifier a stranger could guess at — a PAN — and leave
+   * open the ones that already demonstrate you hold the application: the application number
+   * printed on your own acknowledgement, or the demat account the shares would settle into.
+   * Listing the open paths here lets a lookup take the registrar's own ungated route rather
+   * than putting a challenge in front of someone who never needed to see one.
+   *
+   * Unset means the gate covers every path.
+   */
+  captchaFreeSearchBy?: SearchBy[];
   /**
    * The registrar can be identified and mapped from its company list, but its allotment
    * lookup is not supported — check() will throw. The watcher marks such issues 'unsupported'

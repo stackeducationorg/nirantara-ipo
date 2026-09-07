@@ -1,7 +1,19 @@
 import crypto from 'node:crypto';
 import { db } from '../db/index.js';
-import { getRegistrar, resolveRegistrar } from '../registrars/index.js';
-import type { AllotmentStatus, CaptchaAnswer, DematAccount } from '../registrars/types.js';
+import {
+  allRoutesGated,
+  getRegistrar,
+  needsCaptchaFor,
+  resolveRegistrar,
+  searchRoutes,
+} from '../registrars/index.js';
+import type {
+  AllotmentLookup,
+  AllotmentStatus,
+  CaptchaAnswer,
+  DematAccount,
+  SearchBy,
+} from '../registrars/types.js';
 import { CaptchaRequiredError } from '../registrars/types.js';
 import { decryptPan } from '../util/crypto.js';
 import { mapLimit } from '../util/http.js';
@@ -97,6 +109,19 @@ export async function ensureRegistrar(ipo: IpoRow): Promise<IpoRow> {
   return getIpo(ipo.id) ?? ipo;
 }
 
+/**
+ * The identifier kinds a saved entry carries, newest-proof first.
+ *
+ * Read straight off the stored columns so it can be answered without decrypting anything —
+ * the route planner only needs to know which identifiers exist, not what they are.
+ */
+function identifiersOn(pan: PanRecord): SearchBy[] {
+  const available: SearchBy[] = [];
+  if (pan.demat_enc && (pan.depository === 'NSDL' || pan.depository === 'CDSL')) available.push('demat');
+  if (pan.pan_enc) available.push('pan');
+  return available;
+}
+
 const saveStmt = db.prepare(`
 INSERT INTO allotment_results (
   id, ipo_id, pan_id, account_id, status, applied_qty, allotted_qty, amount,
@@ -145,33 +170,46 @@ export async function checkOne(
         ? { depository: pan.depository, id: decryptPan(pan.demat_enc) }
         : null;
 
-    const canUseDemat = Boolean(demat) && adapter.searchBy.includes('demat');
+    // Which identifiers this entry actually carries, narrowed to what the registrar can
+    // search by and ordered so the registrar's ungated routes are tried first. A saved
+    // entry with a demat account is therefore answered without any challenge at all on a
+    // registrar that gates only its PAN path.
+    const routes = searchRoutes(adapter, identifiersOn(pan));
 
-    if (!plainPan && !canUseDemat) {
+    if (routes.length === 0) {
       // Saved with only a demat account, against a registrar that cannot search by one.
       status = 'pending';
       message = `${adapter.name} can only search by PAN — add one to check this entry`;
     } else {
       try {
-        // With no PAN there is nothing to try first, so go straight to the demat lookup.
-        let lookup = await adapter.check({
-          companyCode: ipo.registrar_code,
-          pan: plainPan ?? '',
-          demat,
-          by: plainPan ? 'pan' : 'demat',
-          captcha,
-        });
+        let found: AllotmentLookup | null = null;
+        let fallback: AllotmentLookup | null = null;
 
-        if (plainPan && lookup.status === 'not_applied' && canUseDemat) {
-          const byDemat = await adapter.check({
+        for (const by of routes) {
+          const attempt = await adapter.check({
             companyCode: ipo.registrar_code,
-            pan: plainPan,
+            pan: plainPan ?? '',
             demat,
-            by: 'demat',
+            by,
+            // A solved challenge belongs only to the path that demanded one; handing it to
+            // an ungated lookup would spend the token for nothing.
+            captcha: needsCaptchaFor(adapter, by) ? captcha : undefined,
           });
-          // Only take the demat answer if it actually found something.
-          if (byDemat.status !== 'not_applied' && byDemat.status !== 'error') lookup = byDemat;
+
+          if (attempt.status !== 'not_applied' && attempt.status !== 'error') {
+            found = attempt;
+            break;
+          }
+
+          // "not applied" from one identifier is not proof of anything: an application made
+          // through a broker is indexed by demat and answers nothing for the PAN. Keep it
+          // only as the answer of last resort, and prefer it to an outright error.
+          if (!fallback || (fallback.status === 'error' && attempt.status === 'not_applied')) {
+            fallback = attempt;
+          }
         }
+
+        const lookup = found ?? fallback!;
 
         status = lookup.status;
         appliedQty = lookup.appliedQty ?? null;
@@ -301,21 +339,47 @@ export async function checkAllotmentForAccount(
   const withRegistrar = await ensureRegistrar(ipo);
   const adapter = getRegistrar(withRegistrar.registrar_key);
 
-  // A captcha registrar cannot be checked without a human to read the challenge. In the
-  // automatic sweep there is nobody, so attempting it every 10 minutes only hammers the
-  // registrar's captcha endpoint into rate-limiting us (HTTP 429) and stores those as errors.
-  // Skip it entirely on auto; the user's manual "check" is what solves it.
-  if (adapter?.needsCaptcha && !opts.captcha && adapter.newCaptcha) {
-    if (opts.auto) {
-      // Automatic sweep, nobody watching: skip rather than hammer the endpoint.
-      return summarise(withRegistrar, []);
-    }
-    // Manual: fetch one challenge and surface it to the user.
-    throw new CaptchaRequiredError(await adapter.newCaptcha(), 'This registrar requires a captcha');
-  }
-
   // Browser-driven registrars are serialised anyway; going wide only queues up timeouts.
   const concurrency = adapter?.driver === 'browser' ? 1 : 4;
+
+  /**
+   * The gate belongs to individual lookups, not to the registrar as a whole.
+   *
+   * This used to ask "does this registrar ever use a captcha?" and stop dead if so — which
+   * put a challenge in front of the user before a single saved entry had been looked at, and
+   * made the automatic sweep skip the registrar outright. An entry carrying a demat account
+   * is answered through the registrar's own ungated path, so it needs no challenge and no
+   * human; only entries with no open route left have to wait for one.
+   */
+  const isGated = (p: PanRecord): boolean =>
+    adapter != null && allRoutesGated(adapter, identifiersOn(p));
+
+  const gatedPans = opts.captcha ? [] : pans.filter(isGated);
+  const openPans = opts.captcha ? pans : pans.filter((p) => !isGated(p));
+
+  if (gatedPans.length > 0 && adapter?.newCaptcha) {
+    // Answer everything that can be answered without a challenge first. checkOne persists
+    // each row as it goes, so these results survive the throw below and are already on the
+    // record by the time the user is asked for anything.
+    const answered = await mapLimit(openPans, concurrency, (p) => checkOne(withRegistrar, p, null));
+
+    if (opts.auto) {
+      // Nobody is watching an automatic sweep, and minting a challenge per entry is what
+      // walks the registrar into rate-limiting the whole batch (HTTP 429). Report what the
+      // open routes produced and leave the gated entries for the user's manual check.
+      if (answered.length > 0) reconcileFromAllotment(accountId, ipoId);
+      return summarise(withRegistrar, answered);
+    }
+
+    // Manual, and something genuinely still needs a human: surface one challenge for it.
+    if (answered.length > 0) reconcileFromAllotment(accountId, ipoId);
+    throw new CaptchaRequiredError(
+      await adapter.newCaptcha(),
+      gatedPans.length === pans.length
+        ? 'This registrar requires a captcha'
+        : `Checked ${answered.length} of ${pans.length} entries. The remaining ${gatedPans.length} need a captcha.`,
+    );
+  }
 
   let results: AllotmentResult[];
 
@@ -352,6 +416,22 @@ export async function checkAllotmentForAccount(
   reconcileFromAllotment(accountId, ipoId);
 
   return summarise(withRegistrar, results);
+}
+
+/**
+ * How many of an account's saved entries this registrar will not answer without a challenge.
+ *
+ * Lets the UI warn only when a challenge is genuinely coming, rather than on the registrar's
+ * name alone — an account whose entries all carry a demat account never sees one.
+ */
+export function gatedEntryCount(accountId: string, ipo: IpoRow): { gated: number; total: number } {
+  const adapter = getRegistrar(ipo.registrar_key);
+  const pans = getPans(accountId);
+  if (!adapter) return { gated: 0, total: pans.length };
+  return {
+    gated: pans.filter((p) => allRoutesGated(adapter, identifiersOn(p))).length,
+    total: pans.length,
+  };
 }
 
 export interface ManualResultInput {

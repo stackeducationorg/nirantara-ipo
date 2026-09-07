@@ -9,7 +9,7 @@ import { mufg } from './mufg.js';
 import { browserProfiles } from './profiles.js';
 import { purva } from './purva.js';
 import { skyline } from './skyline.js';
-import type { RegistrarAdapter, RegistrarCompany } from './types.js';
+import type { RegistrarAdapter, RegistrarCompany, SearchBy } from './types.js';
 
 const log = logger('registrar');
 
@@ -33,6 +33,41 @@ export function getRegistrar(key: string | null | undefined): RegistrarAdapter |
 
 export function listRegistrars(): { key: string; name: string; driver: string }[] {
   return adapters.map((a) => ({ key: a.key, name: a.name, driver: a.driver }));
+}
+
+/**
+ * Whether this particular lookup will be met with a captcha.
+ *
+ * The gate belongs to the lookup, not to the registrar. An adapter that challenges a PAN
+ * search may answer an application-number or demat search outright, so asking per query is
+ * what stops a challenge being raised for a lookup that would never have been challenged.
+ */
+export function needsCaptchaFor(adapter: RegistrarAdapter, by: SearchBy): boolean {
+  if (!adapter.needsCaptcha) return false;
+  return !adapter.captchaFreeSearchBy?.includes(by);
+}
+
+/**
+ * The identifiers to try, in order, for an entry that carries more than one.
+ *
+ * Ungated routes sort first, so an entry with a demat account on file is answered without
+ * anyone being shown a challenge. Within each group the adapter's declared `searchOrder`
+ * wins, falling back to the order in `searchBy`. Anything the entry does not have, or the
+ * registrar cannot search by, is dropped.
+ */
+export function searchRoutes(adapter: RegistrarAdapter, available: SearchBy[]): SearchBy[] {
+  const preferred = adapter.searchOrder ?? adapter.searchBy;
+  const usable = preferred.filter((by) => adapter.searchBy.includes(by) && available.includes(by));
+  return [
+    ...usable.filter((by) => !needsCaptchaFor(adapter, by)),
+    ...usable.filter((by) => needsCaptchaFor(adapter, by)),
+  ];
+}
+
+/** True when every identifier on file for this entry would hit a captcha. */
+export function allRoutesGated(adapter: RegistrarAdapter, available: SearchBy[]): boolean {
+  const routes = searchRoutes(adapter, available);
+  return routes.length > 0 && routes.every((by) => needsCaptchaFor(adapter, by));
 }
 
 /** Maps a free-text registrar name (from an IPO detail page) onto an adapter key. */
