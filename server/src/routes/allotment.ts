@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { requireAuth } from './auth.js';
-import { getStoredSummary, summaryHeadline } from '../services/allotment.js';
+import { gatedEntryCount, getStoredSummary, summaryHeadline } from '../services/allotment.js';
 import { forceCheck } from '../jobs/allotmentWatcher.js';
 import { ensureRegistrar } from '../services/allotment.js';
 import { getRegistrar } from '../registrars/index.js';
@@ -131,7 +131,23 @@ allotmentRouter.get('/:ipoId/captcha', async (req, res) => {
       res.json({ needsCaptcha: false });
       return;
     }
-    res.json({ needsCaptcha: true, registrar: adapter.name, captcha: await adapter.newCaptcha() });
+
+    // Ask about this account's own entries, not the registrar in the abstract. Where the
+    // registrar leaves a route open — a demat lookup on one that gates only PAN searches —
+    // nothing here needs a human, so no challenge is minted and none is shown.
+    const { gated, total } = gatedEntryCount(req.accountId!, withRegistrar);
+    if (gated === 0) {
+      res.json({ needsCaptcha: false, registrar: adapter.name, gated, total });
+      return;
+    }
+
+    res.json({
+      needsCaptcha: true,
+      registrar: adapter.name,
+      gated,
+      total,
+      captcha: await adapter.newCaptcha(),
+    });
   } catch (err) {
     res.status(502).json({ error: (err as Error).message });
   }

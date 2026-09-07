@@ -124,11 +124,17 @@ export async function watchAllotments(): Promise<void> {
         continue;
       }
 
-      // Registrars we can identify but not check unattended — resolve-only (Bigshare) or
-      // captcha-gated (Cameo). Mark the issue unsupported so the watch stops instead of
+      // Registrars we can identify but not check unattended: resolve-only, or gated on every
+      // lookup path they offer. Mark the issue unsupported so the watch stops instead of
       // looping every tick, and so nothing announces a check that will never be delivered.
+      //
+      // A registrar that gates only some paths is NOT unsupported. Bigshare challenges a PAN
+      // search but answers a demat one outright, so entries with a demat account on file are
+      // swept here like any other; checkAllotmentForAccount checks those and leaves the rest.
       const adapter = getRegistrar(ipo.registrar_key);
-      if (!adapter || adapter.resolveOnly || adapter.needsCaptcha) {
+      const fullyGated =
+        Boolean(adapter?.needsCaptcha) && (adapter?.captchaFreeSearchBy ?? []).length === 0;
+      if (!adapter || adapter.resolveOnly || fullyGated) {
         watchState(ipo.id);
         setWatch(ipo.id, { state: 'unsupported', error: null });
         continue;

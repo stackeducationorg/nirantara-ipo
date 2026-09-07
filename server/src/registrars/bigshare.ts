@@ -24,6 +24,14 @@ const CAPTCHA_API = `${HOST}/Captcha.ashx`;
 /** ddddocr sidecar endpoint (see ocr_sidecar.py). */
 const OCR_URL = process.env.BIGSHARE_OCR_URL ?? 'http://127.0.0.1:8701/ocr';
 
+/**
+ * Whether to machine-solve a challenge nobody typed an answer for. Off unless an operator
+ * sets it, because the routing in this adapter means it is almost never reached: a PAN is the
+ * only gated identifier, and an entry with a demat account on file is answered through the
+ * ungated BN path before it ever gets here.
+ */
+const OCR_ENABLED = /^(1|true|yes|on)$/i.test(process.env.BIGSHARE_OCR_ENABLED ?? '');
+
 /** Mirrors the headers the site's own XHRs attach. */
 const PAGE_HEADERS = {
   Referer: STATUS_PAGE,
@@ -282,7 +290,17 @@ function handleResponse(d: BigshareData): AllotmentLookup {
  */
 async function attemptWithCaptcha(query: AllotmentQuery, attempts: number): Promise<AllotmentLookup> {
   for (let i = 0; i < attempts; i++) {
-    const challenge = query.captcha?.answer && i === 0 ? query.captcha! : await solveFreshCaptcha();
+    // Only the first pass can reuse an answer a person actually typed.
+    const supplied = i === 0 && query.captcha?.answer ? query.captcha : null;
+
+    // With no human answer in hand, machine-solving is off unless an operator has explicitly
+    // turned it on. Leaving it on by default meant every unattended sweep minted and solved a
+    // challenge per PAN — the exact traffic that gets this whole connection rate-limited — and
+    // it answers a check that is there to establish a person is present. Default behaviour is
+    // to stop here and hand the challenge back for someone to read.
+    if (!supplied && !OCR_ENABLED) break;
+
+    const challenge = supplied ?? (await solveFreshCaptcha());
     const d = await postLookup(buildPayload(query, challenge));
     if (d.Status === 'CAPTCHA') continue; // token is spent; next iteration re-solves
     return handleResponse(d);
@@ -340,6 +358,13 @@ export const bigshare: RegistrarAdapter = {
   match: ['bigshare'],
   searchBy: ['application', 'pan', 'demat'],
   /**
+   * Only the PAN path is gated. An application number or a beneficiary (demat) id already
+   * demonstrates the caller holds the application, so Bigshare answers AP and BN straight
+   * from the data layer — which makes them the routes to try first, and why `demat` and
+   * `application` sort ahead of `pan` here.
+   */
+  searchOrder: ['demat', 'application', 'pan'],
+  /**
    * PAN lookups are captcha-gated server-side (AP/BN are not, but PAN is how every
    * saved entry is actually searched). This used to read false on the theory that the
    * OCR hook below made it self-service, but unattended OCR solving fires a real
@@ -347,8 +372,14 @@ export const bigshare: RegistrarAdapter = {
    * Bigshare's own server to rate-limit the whole batch (HTTP 429 on every entry).
    * true restores the same skip-on-auto / relay-one-challenge-to-the-human-on-manual
    * behaviour every other gated registrar already uses (see cameo.ts).
+   *
+   * It stays true, but it is no longer read as "every Bigshare lookup needs a human".
+   * `captchaFreeSearchBy` below narrows the gate to the one path that actually carries it,
+   * so an entry with a demat account on file is checked — and swept automatically — with
+   * no challenge shown to anyone.
    */
   needsCaptcha: true,
+  captchaFreeSearchBy: ['application', 'demat'],
   newCaptcha,
   listCompanies,
   check,
