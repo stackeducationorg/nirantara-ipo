@@ -17,6 +17,7 @@ import { mediaRouter } from './routes/media.js';
 import { notificationsRouter, watchlistRouter } from './routes/notifications.js';
 import { pansRouter } from './routes/pans.js';
 import { sendersRouter } from './routes/senders.js';
+import { broadcast } from './services/notify.js';
 import { logger } from './util/logger.js';
 
 const log = logger('server');
@@ -92,6 +93,31 @@ app.delete('/api/admin/hidden/:igId', (req, res) => {
   if (!requireAdmin(req, res)) return;
   const removed = unhideIpo(Number(req.params.igId));
   res.json({ ok: removed, hidden: listHiddenIpos() });
+});
+
+/**
+ * Sends one announcement to every account — the only route here that reaches users directly.
+ *
+ * Registered before /api/admin/:job on purpose: that route is a catch-all and would otherwise
+ * match "broadcast" and answer "Unknown job".
+ *
+ * Defaults to a dry run. A real send needs `dryRun: false` spelled out, because a push cannot
+ * be recalled once it has gone.
+ */
+app.post('/api/admin/broadcast', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const { title, body, dryRun } = (req.body ?? {}) as {
+    title?: string;
+    body?: string;
+    dryRun?: boolean;
+  };
+  if (!title?.trim() || !body?.trim()) {
+    res.status(400).json({ error: 'title and body are required' });
+    return;
+  }
+
+  res.json(await broadcast(title.trim(), body.trim(), { dryRun: dryRun !== false }));
 });
 
 /**

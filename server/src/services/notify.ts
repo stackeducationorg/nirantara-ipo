@@ -28,7 +28,8 @@ export type NotificationKind =
   | 'allotment_out'
   | 'allotment_result'
   | 'listing_day'
-  | 'gmp_move';
+  | 'gmp_move'
+  | 'announcement';
 
 export interface NotificationInput {
   accountId: string;
@@ -47,6 +48,9 @@ const PREF_COLUMN: Record<NotificationKind, string | null> = {
   allotment_result: 'allotment_out',
   listing_day: 'listing_day',
   gmp_move: 'gmp_moves',
+  // Ungated on purpose. The preference switches are about IPO events; someone who turned off
+  // GMP moves has not asked to be cut out of service announcements.
+  announcement: null,
 };
 
 export function getPrefs(accountId: string) {
@@ -166,6 +170,43 @@ export async function notify(input: NotificationInput): Promise<boolean> {
 
   log.info(`[${input.kind}] ${input.title} -> ${devices.length} device(s)`);
   return true;
+}
+
+/**
+ * Sends one announcement to every account.
+ *
+ * There is no undo once a push has left for real devices, so `dryRun` reports the audience
+ * without writing a row or sending anything. The caller has to ask for a real send explicitly.
+ */
+export async function broadcast(
+  title: string,
+  body: string,
+  options: { dryRun?: boolean } = {},
+): Promise<{ accounts: number; devices: number; sent: number }> {
+  const accounts = (db.prepare('SELECT id FROM accounts').all() as { id: string }[]).map((r) => r.id);
+  const devices = (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM device_tokens
+          WHERE expo_token IS NOT NULL OR webpush_sub IS NOT NULL`,
+      )
+      .get() as { n: number }
+  ).n;
+
+  if (options.dryRun) {
+    log.info(`[announcement] dry run — would reach ${accounts.length} account(s), ${devices} device(s)`);
+    return { accounts: accounts.length, devices, sent: 0 };
+  }
+
+  // Sequential rather than Promise.all: this fans out to every device on the service at once,
+  // and there is no reason to hand Expo the whole thing in one burst.
+  let sent = 0;
+  for (const accountId of accounts) {
+    if (await notify({ accountId, kind: 'announcement', title, body })) sent += 1;
+  }
+
+  log.info(`[announcement] "${title}" -> ${sent}/${accounts.length} account(s)`);
+  return { accounts: accounts.length, devices, sent };
 }
 
 /** Every account that has at least one PAN saved, i.e. everyone who could have applied. */
