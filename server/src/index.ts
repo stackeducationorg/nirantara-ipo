@@ -16,6 +16,7 @@ import { iposRouter } from './routes/ipos.js';
 import { mediaRouter } from './routes/media.js';
 import { notificationsRouter, watchlistRouter } from './routes/notifications.js';
 import { pansRouter } from './routes/pans.js';
+import { sendersRouter } from './routes/senders.js';
 import { logger } from './util/logger.js';
 
 const log = logger('server');
@@ -54,6 +55,7 @@ app.use('/api/media', mediaRouter);
 app.use('/api/pans', pansRouter);
 app.use('/api/allotment', allotmentRouter);
 app.use('/api/applications', applicationsRouter);
+app.use('/api/senders', sendersRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/watchlist', watchlistRouter);
 
