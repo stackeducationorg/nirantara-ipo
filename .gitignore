@@ -29,3 +29,8 @@ nirantara-credentials.txt
 # the existing ones needs a history rewrite plus rotation of the exposed OAuth client secret.
 client_secret_*.json
 google-services*.json
+# ...but the Android one is committed and has to reach the builder. EAS filters its upload by
+# these patterns rather than by what git tracks, so without this exception the build fails with
+# "google-services.json is missing", and any APK that slipped through would carry no FCM config
+# and no working push. It ships inside every APK anyway, so it is not secret material.
+!mobile/google-services.json
