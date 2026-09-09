@@ -1,6 +1,7 @@
 import { claimOnce, db, wasClaimed } from '../db/index.js';
 import { getRegistrar } from '../registrars/index.js';
 import type { CaptchaAnswer } from '../registrars/types.js';
+import { BSE_ROUTED_REGISTRARS } from '../sources/bse.js';
 import { decryptPan } from '../util/crypto.js';
 import { logger } from '../util/logger.js';
 import { todayIso } from '../util/parse.js';
@@ -124,11 +125,15 @@ export async function watchAllotments(): Promise<void> {
         continue;
       }
 
-      // Registrars we can identify but not check unattended — resolve-only (Bigshare) or
-      // captcha-gated (Cameo). Mark the issue unsupported so the watch stops instead of
-      // looping every tick, and so nothing announces a check that will never be delivered.
+      // Registrars we can identify but not check unattended — resolve-only, or captcha-gated
+      // (Cameo). Mark the issue unsupported so the watch stops instead of looping every tick,
+      // and so nothing announces a check that will never be delivered.
+      //
+      // A registrar routed through BSE is checkable unattended even though its own endpoint is
+      // captcha-gated: the sweep answers it on BSE with no challenge, so it is NOT skipped.
       const adapter = getRegistrar(ipo.registrar_key);
-      if (!adapter || adapter.resolveOnly || adapter.needsCaptcha) {
+      const routedToBse = adapter ? BSE_ROUTED_REGISTRARS.has(adapter.key) : false;
+      if (!adapter || adapter.resolveOnly || (adapter.needsCaptcha && !routedToBse)) {
         watchState(ipo.id);
         setWatch(ipo.id, { state: 'unsupported', error: null });
         continue;

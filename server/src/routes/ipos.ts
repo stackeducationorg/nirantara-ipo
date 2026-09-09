@@ -5,6 +5,7 @@ import { listRegistrars } from '../registrars/index.js';
 import { cacheGet } from '../util/cache.js';
 import { daysBetween, todayIso } from '../util/parse.js';
 import { NSE_BID_VERIFY_URL } from '../sources/nse.js';
+import { BSE_ROUTED_REGISTRARS } from '../sources/bse.js';
 import { getRegistrar } from '../registrars/index.js';
 
 export const iposRouter = Router();
@@ -53,10 +54,13 @@ function serialise(row: IpoRow) {
      * by the person it was meant for.
      */
     /**
-     * True when this issue's registrar will not answer without a captcha (Bigshare). Clients
-     * use it to route the user to NSE rather than putting a challenge in front of them.
+     * True when this issue's registrar will not answer without a captcha. Clients use it to
+     * route the user to NSE rather than putting a challenge in front of them. A registrar whose
+     * lookup is routed through BSE reports false — that path carries no captcha.
      */
-    registrarNeedsCaptcha: Boolean(getRegistrar(row.registrar_key)?.needsCaptcha),
+    registrarNeedsCaptcha:
+      !BSE_ROUTED_REGISTRARS.has(row.registrar_key ?? '') &&
+      Boolean(getRegistrar(row.registrar_key)?.needsCaptcha),
     nseSymbol: row.nse_symbol,
     nseBidVerifyUrl: row.nse_symbol ? NSE_BID_VERIFY_URL : null,
     subscription: row.subscription_json ? JSON.parse(row.subscription_json) : null,

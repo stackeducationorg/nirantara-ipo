@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { getRegistrar, resolveRegistrar } from '../registrars/index.js';
 import type { AllotmentStatus, CaptchaAnswer, DematAccount } from '../registrars/types.js';
 import { CaptchaRequiredError } from '../registrars/types.js';
+import { BSE_ROUTED_REGISTRARS, checkIpoViaBse } from '../sources/bse.js';
 import { decryptPan } from '../util/crypto.js';
 import { mapLimit } from '../util/http.js';
 import { logger } from '../util/logger.js';
@@ -136,6 +137,37 @@ export async function checkOne(
   if (!adapter || !ipo.registrar_code) {
     status = 'pending';
     message = 'Registrar has not opened allotment lookup for this IPO yet';
+  } else if (BSE_ROUTED_REGISTRARS.has(adapter.key)) {
+    // This registrar's own lookup is captcha-gated, so the issue is answered on BSE instead —
+    // every issue it handles lists on the exchange, and BSE's status service takes a PAN with
+    // no captcha. The registrar adapter still resolved the issue; it is simply not called here.
+    if (!plainPan) {
+      // BSE looks up by PAN (or application number), not by demat account, so a demat-only
+      // entry has nothing to search with. Left pending with a clear prompt rather than
+      // falling back to the registrar's captcha path.
+      status = 'pending';
+      message = 'Add a PAN to this entry to check it on BSE';
+    } else {
+      try {
+        const lookup = await checkIpoViaBse(ipo.name, plainPan);
+        if (!lookup) {
+          // BSE only lists an issue for lookup close to its allotment date.
+          status = 'pending';
+          message = 'BSE has not opened application status for this issue yet';
+        } else {
+          status = lookup.status;
+          appliedQty = lookup.appliedQty ?? null;
+          allottedQty = lookup.allottedQty ?? null;
+          nameOnRecord = lookup.nameOnRecord ?? null;
+          message = lookup.message ?? null;
+          raw = lookup.raw ?? null;
+        }
+      } catch (err) {
+        status = 'error';
+        message = (err as Error).message;
+        log.warn(`BSE check failed for ${pan.label} on ${ipo.name}: ${message}`);
+      }
+    }
   } else {
     // A demat account is a second way to reach the same application. Some registrars index
     // applications made through a broker by demat id and return nothing for the PAN, so a
@@ -305,7 +337,12 @@ export async function checkAllotmentForAccount(
   // automatic sweep there is nobody, so attempting it every 10 minutes only hammers the
   // registrar's captcha endpoint into rate-limiting us (HTTP 429) and stores those as errors.
   // Skip it entirely on auto; the user's manual "check" is what solves it.
-  if (adapter?.needsCaptcha && !opts.captcha && adapter.newCaptcha) {
+  //
+  // Registrars routed through BSE are exempt: their lookup no longer touches the captcha
+  // endpoint at all (checkOne answers them on BSE), so they sweep automatically like any
+  // captcha-free registrar and never raise a challenge to the user.
+  const routedToBse = adapter ? BSE_ROUTED_REGISTRARS.has(adapter.key) : false;
+  if (adapter?.needsCaptcha && !routedToBse && !opts.captcha && adapter.newCaptcha) {
     if (opts.auto) {
       // Automatic sweep, nobody watching: skip rather than hammer the endpoint.
       return summarise(withRegistrar, []);

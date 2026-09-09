@@ -6,6 +6,7 @@ import { forceCheck } from '../jobs/allotmentWatcher.js';
 import { ensureRegistrar } from '../services/allotment.js';
 import { getRegistrar } from '../registrars/index.js';
 import { CaptchaRequiredError } from '../registrars/types.js';
+import { BSE_ROUTED_REGISTRARS } from '../sources/bse.js';
 import { getIpo } from '../services/ipoStore.js';
 import { logger } from '../util/logger.js';
 import { todayIso } from '../util/parse.js';
@@ -127,7 +128,10 @@ allotmentRouter.get('/:ipoId/captcha', async (req, res) => {
   try {
     const withRegistrar = await ensureRegistrar(ipo);
     const adapter = getRegistrar(withRegistrar.registrar_key);
-    if (!adapter?.needsCaptcha || !adapter.newCaptcha) {
+    // A BSE-routed registrar never prompts: its lookup runs on BSE with no captcha, so report
+    // no challenge even though the registrar's own endpoint is gated.
+    const routedToBse = adapter ? BSE_ROUTED_REGISTRARS.has(adapter.key) : false;
+    if (!adapter?.needsCaptcha || routedToBse || !adapter.newCaptcha) {
       res.json({ needsCaptcha: false });
       return;
     }
