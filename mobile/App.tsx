@@ -74,10 +74,10 @@ function Tabs() {
 
   return (
     <Tab.Navigator
-      // Every tab screen hides its own header, so without this nothing holds the content
-      // clear of the status bar and notch — the first row renders underneath them.
-      sceneContainerStyle={{ backgroundColor: t.bg, paddingTop: insets.top }}
       screenOptions={({ route }) => ({
+        // Every tab screen hides its own header, so without this nothing holds the content
+        // clear of the status bar and notch — the first row renders underneath them.
+        sceneStyle: { backgroundColor: t.bg, paddingTop: insets.top },
         headerStyle: { backgroundColor: t.bg },
         headerTitleStyle: { color: t.text, fontSize: 16 },
         headerShadowVisible: false,

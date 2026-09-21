@@ -106,7 +106,7 @@ function AllotmentPanel({ ipo }: { ipo: Ipo }) {
           Save your PANs once and every future IPO is checked across all of them automatically.
         </Text>
         {/* Accounts lives in the tab navigator nested under this stack. */}
-        <Button title="Add a PAN" onPress={() => navigation.navigate('Tabs', { screen: 'Accounts' })} />
+        <Button title="Add a PAN" onPress={() => navigation.popTo('Tabs', { screen: 'Accounts' })} />
       </Card>
     );
   }

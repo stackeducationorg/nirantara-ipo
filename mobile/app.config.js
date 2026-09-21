@@ -26,7 +26,7 @@ export default {
     // minimum, and builds already in the wild report 1.0.0. A 0.0.0.x scheme would compare
     // as *older* than those, so no existing install would ever be prompted to update.
     // Three numeric parts also keeps it valid for iOS.
-    version: '1.0.8',
+    version: '1.0.9',
     orientation: 'portrait',
     scheme: 'niranthar',
     userInterfaceStyle: 'automatic',
@@ -47,8 +47,10 @@ export default {
       // file alone is not enough — the matching FCM V1 service account key must also be
       // uploaded to EAS (npx eas credentials) so Expo's servers are allowed to send.
       googleServicesFile: './google-services.json',
-      // Must be an integer and must increase for every Play Store upload.
-      versionCode: 10,
+      // Only a seed: eas.json sets appVersionSource "remote", so EAS keeps the real versionCode
+      // on its servers and raises it on every production build. Play rejects any number it has
+      // already seen, and EAS cannot write a new value back into this JS file.
+      versionCode: 11,
       adaptiveIcon: {
         foregroundImage: './assets/icon.png',
         backgroundColor: '#ffffff',

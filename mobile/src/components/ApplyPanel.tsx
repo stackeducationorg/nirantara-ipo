@@ -148,7 +148,7 @@ export function ApplyPanel({ ipo }: { ipo: Ipo }) {
         <Text style={{ color: t.textDim, fontSize: 13.5, marginBottom: 14 }}>
           Add your PANs to record how much you applied for from each account.
         </Text>
-        <Button title="Add a PAN" onPress={() => navigation.navigate('Tabs', { screen: 'Accounts' })} />
+        <Button title="Add a PAN" onPress={() => navigation.popTo('Tabs', { screen: 'Accounts' })} />
       </Card>
     );
   }
