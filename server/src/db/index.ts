@@ -189,6 +189,23 @@ CREATE TABLE IF NOT EXISTS hidden_ipos (
   name      TEXT,
   hidden_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- People who hand over money for a single application and only want it back afterwards.
+-- They have no PAN book and no per-IPO ledger: the whole record is a name, the amount, and
+-- whether it has been returned yet. Deliberately unrelated to the applications table, which tracks
+-- the regular applicant who runs the same PANs across a dozen issues.
+CREATE TABLE IF NOT EXISTS one_time_senders (
+  id          TEXT PRIMARY KEY,
+  account_id  TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  amount      REAL NOT NULL DEFAULT 0,
+  note        TEXT,
+  -- holding -> the money is still with us; returned -> it has gone back to them
+  status      TEXT NOT NULL DEFAULT 'holding',
+  received_at TEXT NOT NULL DEFAULT (datetime('now')),
+  returned_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_senders_account ON one_time_senders(account_id, status);
 `);
 
 /**

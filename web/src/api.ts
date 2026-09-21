@@ -3,6 +3,8 @@ import type {
   ApplicationBoard,
   IpoMoneyRow,
   MoneySummary,
+  OneTimeSender,
+  SenderBoard,
   AlertPrefs,
   AllotmentHistoryRow,
   AllotmentSummary,
@@ -171,6 +173,14 @@ export const api = {
     post<{ ok: true; updated: number }>(`/applications/ipo/${ipoId}/refund`, { received }),
   markRefund: (applicationId: string, received: boolean) =>
     post<Application>(`/applications/${applicationId}/refund`, { received }),
+
+  /** One-time senders — the name-and-amount ledger, separate from the per-IPO one. */
+  senders: () => call<SenderBoard>('/senders'),
+  addSender: (body: { name: string; amount: number; note?: string | null }) =>
+    post<OneTimeSender>('/senders', body),
+  markSenderReturned: (id: string, returned: boolean) =>
+    post<OneTimeSender>(`/senders/${id}/returned`, { returned }),
+  deleteSender: (id: string) => call<{ ok: true; removed: boolean }>(`/senders/${id}`, { method: 'DELETE' }),
 
   watchlist: () => call<{ id: string; name: string; status: string }[]>('/watchlist'),
   watch: (ipoId: string) => call<{ watching: boolean }>(`/watchlist/${ipoId}`, { method: 'PUT' }),

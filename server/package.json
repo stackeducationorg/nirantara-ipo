@@ -13,6 +13,7 @@
     "moneytest": "tsx src/cli/moneytest.ts",
     "registrartest": "tsx src/cli/registrartest.ts",
     "captchatest": "tsx src/cli/captchatest.ts",
+    "gatetest": "tsx src/cli/gatetest.ts",
     "browsers": "playwright install chromium"
   },
   "dependencies": {

@@ -208,3 +208,33 @@ export interface IpoMoneyRow {
   allottedShares: number;
   refundStatus: RefundStatus;
 }
+
+/**
+ * The other kind of person on the money page: someone who sends the amount for a single
+ * application and only wants to know it came back. No PAN, no lots, no IPO — just a name,
+ * an amount, and whether it has been returned.
+ */
+export type SenderStatus = 'holding' | 'returned';
+
+export interface OneTimeSender {
+  id: string;
+  name: string;
+  amount: number;
+  note: string | null;
+  status: SenderStatus;
+  receivedAt: string;
+  returnedAt: string | null;
+}
+
+export interface SenderSummary {
+  holding: number;
+  returned: number;
+  holdingCount: number;
+  returnedCount: number;
+  senderCount: number;
+}
+
+export interface SenderBoard {
+  summary: SenderSummary;
+  senders: OneTimeSender[];
+}

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { ApplyPanel, REFUND_LABEL } from '../components/ApplyPanel';
 import { Logo, Section } from '../components/IpoCard';
+import { SendersPanel } from '../components/SendersPanel';
 import { IconInfo, IconWallet } from '../components/Icons';
 import { money, num, shortDate } from '../format';
 import type { Ipo, RefundStatus } from '../types';
@@ -15,9 +16,20 @@ const TONE_CLASS: Record<RefundStatus, string> = {
   debited: 'open',
 };
 
+/**
+ * Two kinds of people put money through this page, and they need different records.
+ *
+ * `ledger`   the regular applicant: their own PANs, ten or fifteen issues, lots and refunds
+ *            tracked per IPO. This is the original view, unchanged.
+ * `onetime`  someone who sends the amount for a single application. Name, amount, and
+ *            whether it went back — nothing else is worth asking them for.
+ */
+type MoneyTab = 'ledger' | 'onetime';
+
 export function Money() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState('');
+  const [tab, setTab] = useState<MoneyTab>('ledger');
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ['money-summary'],
@@ -58,9 +70,26 @@ export function Money() {
     <div>
       <h1 className="page-title">Money</h1>
       <p className="page-sub">
-        What you applied for from each account, and where that money is right now.
+        {tab === 'ledger'
+          ? 'What you applied for from each account, and where that money is right now.'
+          : 'People who sent money once. Mark it when it goes back to them.'}
       </p>
 
+      {/* Beside the ledger rather than buried under it: the two records are alternatives, and
+          a one-time sender has nothing to read in the per-IPO view. */}
+      <div className="chips">
+        <button className={`chip ${tab === 'ledger' ? 'active' : ''}`} onClick={() => setTab('ledger')}>
+          IPO ledger
+        </button>
+        <button className={`chip ${tab === 'onetime' ? 'active' : ''}`} onClick={() => setTab('onetime')}>
+          One-time
+        </button>
+      </div>
+
+      {tab === 'onetime' && <SendersPanel />}
+
+      {tab === 'ledger' && (
+      <>
       {/* Recording an application lives here rather than on the IPO page, so everything to do
           with money is in one place. */}
       <div className="card card-pad" style={{ marginBottom: 18 }}>
@@ -226,6 +255,8 @@ This removes all ${row.accounts} account entr${
             </div>
           </Section>
         </>
+      )}
+      </>
       )}
     </div>
   );

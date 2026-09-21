@@ -125,15 +125,21 @@ export async function watchAllotments(): Promise<void> {
         continue;
       }
 
-      // Registrars we can identify but not check unattended — resolve-only, or captcha-gated
-      // (Cameo). Mark the issue unsupported so the watch stops instead of looping every tick,
-      // and so nothing announces a check that will never be delivered.
+      // Registrars we can identify but not check unattended: resolve-only, or gated on every
+      // lookup path they offer. Mark the issue unsupported so the watch stops instead of
+      // looping every tick, and so nothing announces a check that will never be delivered.
       //
-      // A registrar routed through BSE is checkable unattended even though its own endpoint is
-      // captcha-gated: the sweep answers it on BSE with no challenge, so it is NOT skipped.
+      // A registrar that gates only some paths is NOT unsupported. Bigshare challenges a PAN
+      // search but answers a demat one outright, so entries with a demat account on file are
+      // swept here like any other; checkAllotmentForAccount checks those and leaves the rest.
+      //
+      // A registrar routed through BSE is never unsupported: the sweep answers it on BSE with
+      // no challenge, so even a fully-gated registrar is checkable unattended.
       const adapter = getRegistrar(ipo.registrar_key);
       const routedToBse = adapter ? BSE_ROUTED_REGISTRARS.has(adapter.key) : false;
-      if (!adapter || adapter.resolveOnly || (adapter.needsCaptcha && !routedToBse)) {
+      const fullyGated =
+        Boolean(adapter?.needsCaptcha) && (adapter?.captchaFreeSearchBy ?? []).length === 0;
+      if (!adapter || adapter.resolveOnly || (fullyGated && !routedToBse)) {
         watchState(ipo.id);
         setWatch(ipo.id, { state: 'unsupported', error: null });
         continue;
