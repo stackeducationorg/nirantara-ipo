@@ -15,7 +15,7 @@ export function AccountsScreen() {
   const t = useTheme();
   const s = makeStyles(t);
   const queryClient = useQueryClient();
-  const { account, logout } = useAuth();
+  const { account, logout, deleteAccount } = useAuth();
 
   const [pan, setPan] = useState('');
   const [label, setLabel] = useState('');
@@ -210,6 +210,28 @@ export function AccountsScreen() {
           {account?.email ?? ''}
         </Text>
         <Button title="Sign out" variant="danger" onPress={() => void logout()} />
+        <Pressable
+          style={{ alignItems: 'center', marginTop: 14 }}
+          onPress={() =>
+            Alert.alert(
+              'Delete account',
+              'This permanently deletes your account, saved PANs, applications, watchlist and alerts on every device. It cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: () =>
+                    deleteAccount().catch((e: unknown) =>
+                      Alert.alert('Could not delete account', e instanceof Error ? e.message : 'Try again.'),
+                    ),
+                },
+              ],
+            )
+          }
+        >
+          <Text style={{ color: t.neg, fontWeight: '600', fontSize: 13 }}>Delete account</Text>
+        </Pressable>
       </Card>
 
       <View style={{ alignItems: 'center', marginTop: 26 }}>

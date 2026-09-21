@@ -12,8 +12,8 @@ import { useSeo } from '../seo';
  * bounces is worse than no address at all.
  */
 const ENTITY = 'Nirantara IPO';
-const CONTACT = 'support@nirantara.cloud';
-const GRIEVANCE = 'grievance@nirantara.cloud';
+const CONTACT = 'stack.nirantaraipo@gmail.com';
+const GRIEVANCE = 'stack.nirantaraipo@gmail.com';
 const JURISDICTION = 'Bengaluru, Karnataka';
 const UPDATED = '21 August 2026';
 
@@ -378,6 +378,57 @@ export function Privacy() {
       <p>
         We will update this policy as the Service changes, and revise the “last updated” date. If
         a change materially affects how we use your data, we will tell you in the app.
+      </p>
+    </LegalLayout>
+  );
+}
+
+/* --------------------------------------------------------- delete account */
+
+/**
+ * Google Play requires a public web page, reachable without the app, that explains how to
+ * delete an account and what is removed. Its URL goes in Play Console → Data safety.
+ */
+export function DeleteAccount() {
+  return (
+    <LegalLayout
+      title="Delete your account"
+      summary={`How to permanently delete your ${ENTITY} account and the data held with it.`}
+    >
+      <h2>Delete it yourself</h2>
+      <p>Deletion is immediate and applies to the app and the website alike.</p>
+      <ul>
+        <li>
+          <strong>In the app:</strong> open the Accounts tab, scroll to the bottom and tap{' '}
+          <strong>Delete account</strong>.
+        </li>
+        <li>
+          <strong>On the website:</strong> sign in, open Accounts, and under Security choose{' '}
+          <strong>Delete account</strong>.
+        </li>
+      </ul>
+
+      <h2>Or ask us to do it</h2>
+      <p>
+        If you no longer have access to the app, email{' '}
+        <a href={`mailto:${CONTACT}?subject=Delete my account`}>{CONTACT}</a> from the address
+        you signed up with, with the subject “Delete my account”. We delete it within 30 days and
+        confirm by reply.
+      </p>
+
+      <h2>What is deleted</h2>
+      <ul>
+        <li>Your account: email address, name, password hash and sync key.</li>
+        <li>Every saved PAN and demat number, and the allotment results fetched for them.</li>
+        <li>Your recorded applications, money ledger and one-time senders.</li>
+        <li>Your watchlist, alert preferences, notifications and every device’s push token.</li>
+      </ul>
+
+      <h2>What is kept</h2>
+      <p>
+        Nothing that identifies you. Public market data such as IPO details and GMP history is
+        not linked to any account and stays. Server logs and backups age out on their normal
+        cycle, within 30 days.
       </p>
     </LegalLayout>
   );

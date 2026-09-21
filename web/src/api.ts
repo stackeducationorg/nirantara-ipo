@@ -99,6 +99,7 @@ export const api = {
   pair: (syncKey: string) => post<AuthResult>('/auth/pair', { syncKey, platform: 'web' }),
   google: (idToken: string) => post<AuthResult>('/auth/google', { idToken, platform: 'web' }),
   logout: () => post<{ ok: true }>('/auth/logout'),
+  deleteAccount: () => call<{ ok: true }>('/auth/account', { method: 'DELETE' }),
   changePassword: (currentPassword: string, newPassword: string) =>
     post<{ ok: true }>('/auth/change-password', { currentPassword, newPassword }),
 

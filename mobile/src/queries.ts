@@ -35,6 +35,7 @@ export const api = {
   google: (idToken: string) =>
     post<AuthResult>('/auth/google', { idToken, platform: Platform.OS === 'ios' ? 'ios' : 'android' }),
   logout: () => post<{ ok: true }>('/auth/logout'),
+  deleteAccount: () => call<{ ok: true }>('/auth/account', { method: 'DELETE' }),
 
   me: () => call<Account & { deviceCount: number; panCount: number }>('/auth/me'),
 

@@ -10,7 +10,7 @@ import { IpoDetail } from './pages/IpoDetail';
 import { Landing } from './pages/Landing';
 import { Download } from './pages/Download';
 import { AllotmentGuide } from './pages/AllotmentGuide';
-import { Disclaimer, Privacy, Terms } from './pages/Legal';
+import { DeleteAccount, Disclaimer, Privacy, Terms } from './pages/Legal';
 import { PublicShell } from './components/PublicShell';
 import { Money } from './pages/Money';
 import { SignIn } from './pages/SignIn';
@@ -50,6 +50,7 @@ export function App() {
         <Route path="/terms" element={<PublicShell><Terms /></PublicShell>} />
         <Route path="/privacy" element={<PublicShell><Privacy /></PublicShell>} />
         <Route path="/disclaimer" element={<PublicShell><Disclaimer /></PublicShell>} />
+        <Route path="/delete-account" element={<PublicShell><DeleteAccount /></PublicShell>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
@@ -70,6 +71,7 @@ export function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/disclaimer" element={<Disclaimer />} />
+        <Route path="/delete-account" element={<DeleteAccount />} />
         {/* Signing in lands here, so send the old route to the dashboard. */}
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<div className="card empty">Page not found.</div>} />
