@@ -263,6 +263,18 @@ authRouter.post('/logout', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+/**
+ * Permanently deletes the signed-in account. Every table holding a user's data references
+ * accounts(id) ON DELETE CASCADE, so this one statement also removes their PANs, applications,
+ * watchlist, alert preferences, notifications, senders and every device token, which signs out
+ * all their devices. The privacy policy and Google Play both promise this is available in-app.
+ */
+authRouter.delete('/account', requireAuth, rateLimit(5, 15 * 60_000), (req, res) => {
+  db.prepare('DELETE FROM accounts WHERE id = ?').run(req.accountId!);
+  log.info(`deleted account ${req.accountId}`);
+  res.json({ ok: true });
+});
+
 const changePassword = z.object({
   // Omitted when the account has never had a password, which is the case for anyone who
   // signed up with Google. They are already authenticated by their bearer token.

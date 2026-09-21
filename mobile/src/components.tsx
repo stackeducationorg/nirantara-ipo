@@ -1,3 +1,4 @@
+import type React from 'react';
 import { ReactNode, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { API_BASE } from './api';
@@ -161,7 +162,7 @@ export function Stat({
   );
 }
 
-type IconComponent = (props: { size?: number; color: string }) => JSX.Element;
+type IconComponent = (props: { size?: number; color: string }) => React.JSX.Element;
 
 export function Empty({ icon: Icon, text }: { icon: IconComponent; text: string }) {
   const t = useTheme();

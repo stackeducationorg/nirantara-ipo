@@ -309,8 +309,43 @@ export function Accounts() {
         <div style={{ display: 'grid', gap: 16 }}>
           <ChangePassword />
           <SyncKey />
+          <DeleteAccount />
         </div>
       </Section>
+    </div>
+  );
+}
+
+function DeleteAccount() {
+  const { deleteAccount } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <div className="row-title">Delete account</div>
+      <p className="row-sub" style={{ margin: '4px 0 12px' }}>
+        Permanently deletes your account, saved PANs, applications, watchlist and alerts on every
+        device. This cannot be undone.
+      </p>
+      {error && <p className="row-sub" style={{ color: 'var(--neg)', marginBottom: 12 }}>{error}</p>}
+      <button
+        className="btn danger sm"
+        disabled={busy}
+        onClick={async () => {
+          if (!confirm('Permanently delete your account and all its data? This cannot be undone.')) return;
+          setBusy(true);
+          setError(null);
+          try {
+            await deleteAccount();
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not delete account. Try again.');
+            setBusy(false);
+          }
+        }}
+      >
+        <IconTrash size={14} /> Delete account
+      </button>
     </div>
   );
 }

@@ -18,6 +18,8 @@ interface AuthContextValue {
   pair: (syncKey: string) => Promise<void>;
   googleSignIn: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Permanently deletes the account on the server, then signs this browser out. */
+  deleteAccount: () => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -61,6 +63,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       googleSignIn: async (idToken) => adopt(await api.google(idToken)),
       logout: async () => {
         await api.logout().catch(() => {});
+        clearToken();
+        setAccount(null);
+        queryClient.clear();
+      },
+      deleteAccount: async () => {
+        // Unlike logout, a failure here must reach the user: they asked for their data gone.
+        await api.deleteAccount();
         clearToken();
         setAccount(null);
         queryClient.clear();

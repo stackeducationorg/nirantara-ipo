@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Switch, Text, View } from 'react-native';
@@ -10,7 +11,7 @@ import { api } from '../queries';
 import { useTheme } from '../theme';
 import type { AlertPrefs } from '../types';
 
-const KIND_ICON: Record<string, (p: { size?: number; color: string }) => JSX.Element> = {
+const KIND_ICON: Record<string, (p: { size?: number; color: string }) => React.JSX.Element> = {
   ipo_open: IconCalendar,
   ipo_closing: IconClock,
   allotment_out: IconBell,
