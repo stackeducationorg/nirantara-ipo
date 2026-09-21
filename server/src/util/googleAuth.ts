@@ -26,7 +26,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleIdenti
   // fail verification even though the token is perfectly valid.
   const audience = [
     config.googleClientId,
-    config.googleAndroidClientId,
+    ...config.googleAndroidClientIds,
     config.googleIosClientId,
   ].filter((v): v is string => Boolean(v));
 

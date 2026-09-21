@@ -68,8 +68,15 @@ export const config = {
   /**
    * Native sign-in returns an ID token whose `aud` is the platform's own client id, not the
    * web one — so every accepted client has to be listed or the app's tokens are rejected.
+   *
+   * Comma-separated, because each Android client is tied to one signing certificate: the APK
+   * handed out from the website is signed by the EAS key, the Play Store build by Google's
+   * Play App Signing key, and each needs its own client.
    */
-  googleAndroidClientId: optional('GOOGLE_ANDROID_CLIENT_ID'),
+  googleAndroidClientIds: optional('GOOGLE_ANDROID_CLIENT_ID')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean),
   googleIosClientId: optional('GOOGLE_IOS_CLIENT_ID'),
 
   /** Comma-separated origins allowed to call the API. Empty = allow all (dev). */

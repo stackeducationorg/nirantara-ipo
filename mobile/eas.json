@@ -34,7 +34,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://api.nirantara.cloud/api"
+        "EXPO_PUBLIC_API_BASE": "https://api.nirantara.cloud/api",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "1063536050082-0od875oho71jong5vr46q324kc0jcllc.apps.googleusercontent.com"
       }
     }
   },
