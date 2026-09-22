@@ -265,7 +265,7 @@ async function notifyAccounts(ipo: IpoRow): Promise<void> {
     }
 
     const gotSome = summary.allottedAccounts > 0;
-    await notify({
+    const alertsOn = await notify({
       accountId,
       ipoId: ipo.id,
       kind: 'allotment_result',
@@ -283,7 +283,13 @@ async function notifyAccounts(ipo: IpoRow): Promise<void> {
     // Email is a separate channel from push: someone who never installed the app, or who
     // denied notification permission, still gets their result. Awaited but never throwing,
     // so a mail failure cannot abort the rest of the sweep.
-    await sendAllotmentEmail(accountId, ipo, summary, latestGmp(ipo.id)?.gmp ?? null);
+    //
+    // notify() returns false when the account has switched allotment alerts off. The email
+    // footer tells people to manage alerts in the app, so that switch has to stop the email
+    // too; before this, someone who turned alerts off still got the email.
+    if (alertsOn) {
+      await sendAllotmentEmail(accountId, ipo, summary, latestGmp(ipo.id)?.gmp ?? null);
+    }
   }
 
   if (outstanding === 0) {

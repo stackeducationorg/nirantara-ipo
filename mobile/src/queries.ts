@@ -44,8 +44,8 @@ export const api = {
   gmpBoard: () => call<Ipo[]>('/ipos/gmp/live'),
 
   pans: () => call<Pan[]>('/pans'),
-  addPan: (body: { pan?: string; label: string; demat?: string }) => post<Pan>('/pans', body),
-  updatePan: (id: string, body: Partial<{ label: string; isActive: boolean; demat: string }>) =>
+  addPan: (body: { pan?: string; label: string; holderName?: string; demat?: string }) => post<Pan>('/pans', body),
+  updatePan: (id: string, body: Partial<{ label: string; isActive: boolean; demat: string; holderName: string | null }>) =>
     call<Pan>(`/pans/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deletePan: (id: string) => call<{ ok: true }>(`/pans/${id}`, { method: 'DELETE' }),
 

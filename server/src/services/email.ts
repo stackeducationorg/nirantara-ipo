@@ -114,9 +114,9 @@ function renderAllotmentEmail(
       (r) => `
       <tr>
         <td style="padding:10px 0;border-top:1px solid #ececf0;">
-          <div style="font-weight:600;font-size:14px;color:#09090b;">${esc(r.nameOnRecord ?? r.label)}</div>
+          <div style="font-weight:600;font-size:14px;color:#09090b;">${esc(r.displayName)}</div>
           <div style="font-size:12px;color:#8b8b94;">${esc(r.panMasked)}${
-            r.nameOnRecord ? ' · ' + esc(r.label) : ''
+            r.displayName !== r.label ? ' · ' + esc(r.label) : ''
           }</div>
         </td>
         <td style="padding:10px 0;border-top:1px solid #ececf0;text-align:right;white-space:nowrap;">
@@ -322,7 +322,30 @@ function renderAllotmentEmail(
   return { subject, html, text };
 }
 
-/** Sends the allotment result email. Never throws — a mail failure must not abort a sweep. */
+/**
+ * Enough of an address to tell recipients apart in the journal without writing the whole
+ * mailbox into logs that are kept for days.
+ */
+function maskEmail(email: string): string {
+  const [user, domain] = email.split('@');
+  return `${user.slice(0, 2)}***@${domain ?? ''}`;
+}
+
+// Said once, not per message: an unconfigured server would otherwise log it for every
+// account in every sweep. Once is enough to make it visible that no email will go out.
+let warnedUnconfigured = false;
+
+/**
+ * Sends the allotment result email. Never throws — a mail failure must not abort a sweep.
+ *
+ * Every outcome is logged with the account, the masked recipient and, on success, the
+ * Message-ID and the server's reply. "Sent" here only means the SMTP server accepted the
+ * message; whether it then reached the inbox, landed in spam or bounced back to the sender
+ * is decided after that, out of our sight. With the Message-ID in the journal a missing
+ * email can be found in the recipient's mailbox (search `rfc822msgid:<id>`) and in the
+ * sender's Sent folder. Without it, a log that only named the IPO could not tell us which
+ * message went to whom.
+ */
 export async function sendAllotmentEmail(
   accountId: string,
   ipo: IpoRow,
@@ -330,14 +353,26 @@ export async function sendAllotmentEmail(
   gmp: number | null,
 ): Promise<boolean> {
   const t = mailer();
-  if (!t) return false;
+  if (!t) {
+    if (!warnedUnconfigured) {
+      warnedUnconfigured = true;
+      log.warn('allotment emails are off: SMTP_USER or SMTP_PASS is not set');
+    }
+    return false;
+  }
 
   const to = recipientFor(accountId);
-  if (!to) return false;
+  if (!to) {
+    // Accounts created with a sync key alone have no address. Worth a line anyway, so that
+    // "no email" can be told apart from "email failed".
+    log.info(`allotment email skipped for ${ipo.name}: account ${accountId} has no email address`);
+    return false;
+  }
+  const who = `account ${accountId} (${maskEmail(to.email)})`;
 
   try {
     const { subject, html, text } = renderAllotmentEmail(to, ipo, summary, gmp);
-    await t.sendMail({
+    const info = await t.sendMail({
       from: config.smtp.from,
       to: to.email,
       subject,
@@ -354,10 +389,22 @@ export async function sendAllotmentEmail(
         ? [{ filename: 'logo.png', content: logoBuffer, cid: LOGO_CID, contentDisposition: 'inline' }]
         : [],
     });
-    log.info(`allotment email sent for ${ipo.name}`);
+
+    // A server can accept the session and still refuse the one recipient. nodemailer only
+    // throws when every recipient is refused, so check the list rather than trust the promise.
+    if (info.rejected.length > 0) {
+      log.warn(`allotment email for ${ipo.name} to ${who} rejected by SMTP server: ${info.response}`);
+      return false;
+    }
+    log.info(`allotment email for ${ipo.name} accepted for ${who}: id ${info.messageId}, reply "${info.response}"`);
     return true;
   } catch (err) {
-    log.warn(`allotment email failed: ${(err as Error).message.split('\n')[0]}`);
+    const e = err as Error & { code?: string; responseCode?: number; response?: string };
+    // The code and the SMTP reply are what tell the causes apart: EAUTH is a revoked app
+    // password, ETIMEDOUT/ECONNECTION a blocked port, a 5xx reply a refused sender or
+    // recipient. The message's first line alone often says only "Invalid login".
+    const detail = [e.code, e.responseCode, e.response ?? e.message.split('\n')[0]].filter(Boolean).join(' ');
+    log.warn(`allotment email for ${ipo.name} to ${who} failed: ${detail}`);
     return false;
   }
 }

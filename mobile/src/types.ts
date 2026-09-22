@@ -82,6 +82,10 @@ export interface AllotmentResult {
   allottedQty: number | null;
   amount: number | null;
   nameOnRecord: string | null;
+  /** Name saved against this entry in the PAN book. */
+  holderName: string | null;
+  /** The PAN book's name, else the registrar's, else the label. */
+  displayName: string;
   message: string | null;
   checkedAt: string;
 }

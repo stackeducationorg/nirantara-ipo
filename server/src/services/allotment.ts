@@ -43,8 +43,24 @@ export interface AllotmentResult {
   allottedQty: number | null;
   amount: number | null;
   nameOnRecord: string | null;
+  /** The name saved against this entry in the PAN book, if any. */
+  holderName: string | null;
+  /**
+   * Who this entry belongs to: the name stored with the PAN, else the registrar's, else the
+   * label. The stored name wins so the same person reads the same way on every issue — BSE
+   * and "not applied" lookups return no name at all.
+   */
+  displayName: string;
   message: string | null;
   checkedAt: string;
+}
+
+function nameFields(
+  nameOnRecord: string | null,
+  holderName: string | null,
+  label: string,
+): Pick<AllotmentResult, 'holderName' | 'displayName'> {
+  return { holderName, displayName: holderName ?? nameOnRecord ?? label };
 }
 
 export interface AllotmentSummary {
@@ -320,6 +336,7 @@ export async function checkOne(
     allottedQty,
     amount,
     nameOnRecord,
+    ...nameFields(nameOnRecord, pan.holder_name ?? nameOnRecord, pan.label),
     message,
     checkedAt: new Date().toISOString(),
   };
@@ -541,7 +558,7 @@ export function getStoredSummary(accountId: string, ipoId: string): AllotmentSum
 
   const rows = db
     .prepare(
-      `SELECT r.*, p.label, p.pan_enc, p.demat_enc
+      `SELECT r.*, p.label, p.pan_enc, p.demat_enc, p.holder_name
        FROM allotment_results r JOIN pans p ON p.id = r.pan_id
        WHERE r.account_id = ? AND r.ipo_id = ?`,
     )
@@ -549,6 +566,7 @@ export function getStoredSummary(accountId: string, ipoId: string): AllotmentSum
     label: string;
     pan_enc: string | null;
     demat_enc: string | null;
+    holder_name: string | null;
   })[];
 
   if (rows.length === 0) return null;
@@ -562,6 +580,7 @@ export function getStoredSummary(accountId: string, ipoId: string): AllotmentSum
     allottedQty: (row.allotted_qty as number) ?? null,
     amount: (row.amount as number) ?? null,
     nameOnRecord: (row.name_on_record as string) ?? null,
+    ...nameFields((row.name_on_record as string) ?? null, row.holder_name, row.label),
     message: (row.message as string) ?? null,
     checkedAt: String(row.checked_at),
   }));
