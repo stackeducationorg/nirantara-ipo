@@ -45,54 +45,22 @@ export interface AllotmentResult {
   nameOnRecord: string | null;
   /** The name saved against this entry in the PAN book, if any. */
   holderName: string | null;
-  /** The name to show: the registrar's when it gave one, else the PAN book's, else the label. */
+  /**
+   * Who this entry belongs to: the name stored with the PAN, else the registrar's, else the
+   * label. The stored name wins so the same person reads the same way on every issue — BSE
+   * and "not applied" lookups return no name at all.
+   */
   displayName: string;
-  /** Where displayName came from, so the UI can say when it is not the registrar's. */
-  nameSource: 'registrar' | 'pan_book' | 'label';
-  /** The registrar's name and the PAN book's both exist and do not describe the same person. */
-  nameMismatch: boolean;
   message: string | null;
   checkedAt: string;
-}
-
-/** Honorifics registrars prefix to names ("MR. A B C") that the PAN book never carries. */
-const HONORIFICS = new Set(['MR', 'MRS', 'MS', 'MISS', 'DR', 'SHRI', 'SMT', 'KUM', 'KUMARI', 'M/S']);
-
-function nameTokens(name: string): string[] {
-  return name
-    .toUpperCase()
-    .replace(/[^A-Z ]+/g, ' ')
-    .split(' ')
-    .filter((t) => t && !HONORIFICS.has(t));
-}
-
-/**
- * Whether two renderings of a name plausibly belong to the same person. Registrars and PAN
- * cards disagree on order ("JOSHI ANKIT"), initials and middle names, so it is a match when
- * every word of the shorter name appears in the longer one, an initial standing for any word
- * that starts with it.
- */
-export function namesAgree(a: string, b: string): boolean {
-  const ta = nameTokens(a);
-  const tb = nameTokens(b);
-  if (ta.length === 0 || tb.length === 0) return true;
-  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
-  return short.every((word) =>
-    long.some((other) => other === word || (word.length === 1 && other.startsWith(word)) || (other.length === 1 && word.startsWith(other))),
-  );
 }
 
 function nameFields(
   nameOnRecord: string | null,
   holderName: string | null,
   label: string,
-): Pick<AllotmentResult, 'holderName' | 'displayName' | 'nameSource' | 'nameMismatch'> {
-  return {
-    holderName,
-    displayName: nameOnRecord ?? holderName ?? label,
-    nameSource: nameOnRecord ? 'registrar' : holderName ? 'pan_book' : 'label',
-    nameMismatch: Boolean(nameOnRecord && holderName && !namesAgree(nameOnRecord, holderName)),
-  };
+): Pick<AllotmentResult, 'holderName' | 'displayName'> {
+  return { holderName, displayName: holderName ?? nameOnRecord ?? label };
 }
 
 export interface AllotmentSummary {

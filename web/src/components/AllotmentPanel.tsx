@@ -48,22 +48,16 @@ function ResultRow({ result }: { result: AllotmentResult }) {
       <span className={`status-dot status-${result.status}`} />
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* The registrar's name is what identifies the applicant; the label is usually a
-            generic "Account" the user never customised, so it takes the secondary line. When the
-            registrar gives no name (not applied, BSE), the PAN book's stands in and says so. */}
+            generic "Account" the user never customised, so it takes the secondary line. The name
+            stored with the PAN is used first, since BSE and "not applied" lookups carry none. */}
         <div className="row-title">
           {result.displayName}
           <span className="faint mono" style={{ fontWeight: 400, marginLeft: 8, fontSize: 12.5 }}>
             {result.panMasked}
           </span>
         </div>
-        {result.nameMismatch && (
-          <div className="row-sub neg" style={{ fontWeight: 560 }}>
-            Registrar name differs from your PAN book ({result.holderName})
-          </div>
-        )}
         <div className="row-sub">
-          {result.nameSource !== 'label' ? `${result.label} · ` : ''}
-          {result.nameSource === 'pan_book' ? 'name from your PAN book · ' : ''}
+          {result.displayName !== result.label ? `${result.label} · ` : ''}
           <span className={STATUS_TONE[result.status]} style={{ fontWeight: STATUS_TONE[result.status] ? 560 : undefined }}>
             {STATUS_TEXT[result.status]}
           </span>

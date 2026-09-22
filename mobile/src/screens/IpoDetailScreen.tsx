@@ -189,14 +189,8 @@ function AllotmentPanel({ ipo }: { ipo: Ipo }) {
               {r.displayName}{' '}
               <Text style={{ color: t.textFaint, fontWeight: '400' }}>{r.panMasked}</Text>
             </Text>
-            {r.nameMismatch ? (
-              <Text style={{ color: t.neg, fontSize: 11.5, fontWeight: '600' }} numberOfLines={2}>
-                Registrar name differs from your PAN book ({r.holderName})
-              </Text>
-            ) : null}
             <Text style={{ color: t.textFaint, fontSize: 11.5 }} numberOfLines={1}>
-              {r.nameSource !== 'label' ? `${r.label} · ` : ''}
-              {r.nameSource === 'pan_book' ? 'name from PAN book · ' : ''}
+              {r.displayName !== r.label ? `${r.label} · ` : ''}
               <Text
                 style={{
                   color:

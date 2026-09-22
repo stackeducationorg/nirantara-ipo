@@ -266,6 +266,14 @@ export function Accounts() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pans'] }),
   });
 
+  // The name on the PAN card is what allotment results and emails show for this entry, so it
+  // can be filled in or corrected here — registrars only return it once someone has applied.
+  const rename = useMutation({
+    mutationFn: ({ id, holderName }: { id: string; holderName: string | null }) =>
+      api.updatePan(id, { holderName }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pans'] }),
+  });
+
   const toggle = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => api.updatePan(id, { isActive }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pans'] }),
@@ -305,13 +313,24 @@ export function Accounts() {
                   onClick={() => toggle.mutate({ id: pan.id, isActive: !pan.isActive })}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="row-title">{pan.label}</div>
+                  <div className="row-title">{pan.holderName ?? pan.label}</div>
                   <div className="row-sub mono">
+                    {pan.holderName ? `${pan.label} · ` : ''}
                     {pan.pan ?? ''}
-                    {pan.demat ? `${pan.pan ? ' · ' : ''}${pan.depository} ${pan.demat}` : ''}
-                    {pan.holderName ? ` · ${pan.holderName}` : ''} · added {shortDate(pan.createdAt.slice(0, 10))}
+                    {pan.demat ? `${pan.pan ? ' · ' : ''}${pan.depository} ${pan.demat}` : ''} · added{' '}
+                    {shortDate(pan.createdAt.slice(0, 10))}
                   </div>
                 </div>
+                <button
+                  className="btn sm"
+                  onClick={() => {
+                    const next = prompt('Name as printed on the PAN card', pan.holderName ?? '');
+                    if (next === null) return;
+                    rename.mutate({ id: pan.id, holderName: next.trim() || null });
+                  }}
+                >
+                  {pan.holderName ? 'Edit name' : 'Add name'}
+                </button>
                 <button
                   className="btn danger sm"
                   onClick={() => {

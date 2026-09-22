@@ -63,6 +63,19 @@ export function AccountsScreen() {
     onSuccess: invalidate,
   });
 
+  // The name on the PAN card is what allotment results and emails show for this entry, so it
+  // can be filled in or corrected here — registrars only return it once someone has applied.
+  // Edited inline because Android has no text prompt dialog.
+  const [editingName, setEditingName] = useState<{ id: string; value: string } | null>(null);
+  const rename = useMutation({
+    mutationFn: ({ id, holderName }: { id: string; holderName: string | null }) =>
+      api.updatePan(id, { holderName }),
+    onSuccess: () => {
+      setEditingName(null);
+      void invalidate();
+    },
+  });
+
   const inputStyle = {
     borderWidth: 1,
     borderColor: t.border,
@@ -180,12 +193,42 @@ export function AccountsScreen() {
                 trackColor={{ true: t.accent, false: t.border }}
               />
               <View style={{ flex: 1 }}>
-                <Text style={{ color: t.text, fontWeight: '600', fontSize: 14 }}>{p.label}</Text>
+                <Text style={{ color: t.text, fontWeight: '600', fontSize: 14 }}>{p.holderName ?? p.label}</Text>
                 <Text style={{ color: t.textFaint, fontSize: 11.5 }}>
+                  {p.holderName ? `${p.label} · ` : ''}
                   {p.pan ?? ''}
-                  {p.demat ? `${p.pan ? ' · ' : ''}${p.depository} ${p.demat}` : ''}
-                  {p.holderName ? ` · ${p.holderName}` : ''} · added {shortDate(p.createdAt.slice(0, 10))}
+                  {p.demat ? `${p.pan ? ' · ' : ''}${p.depository} ${p.demat}` : ''} · added{' '}
+                  {shortDate(p.createdAt.slice(0, 10))}
                 </Text>
+                {editingName?.id === p.id ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                    <TextInput
+                      style={[inputStyle, { flex: 1, paddingVertical: 7 }]}
+                      placeholder="Name as on PAN card"
+                      placeholderTextColor={t.textFaint}
+                      autoCapitalize="characters"
+                      autoFocus
+                      maxLength={80}
+                      value={editingName.value}
+                      onChangeText={(value) => setEditingName({ id: p.id, value })}
+                    />
+                    <Pressable
+                      disabled={rename.isPending}
+                      onPress={() => rename.mutate({ id: p.id, holderName: editingName.value.trim() || null })}
+                    >
+                      <Text style={{ color: t.accent, fontWeight: '700', fontSize: 13 }}>Save</Text>
+                    </Pressable>
+                    <Pressable onPress={() => setEditingName(null)}>
+                      <Text style={{ color: t.textFaint, fontSize: 13 }}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable onPress={() => setEditingName({ id: p.id, value: p.holderName ?? '' })} hitSlop={6}>
+                    <Text style={{ color: t.accent, fontWeight: '600', fontSize: 12, marginTop: 5 }}>
+                      {p.holderName ? 'Edit name' : 'Add name'}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
               <Pressable
                 onPress={() =>
