@@ -106,5 +106,28 @@ export function nameSimilarity(a: string, b: string): number {
   if (ta.size === 0 || tb.size === 0) return 0;
   let shared = 0;
   for (const t of ta) if (tb.has(t)) shared += 1;
-  return shared / Math.max(ta.size, tb.size);
+  const overlap = shared / Math.max(ta.size, tb.size);
+  return Math.max(overlap, acronymSimilarity(ta, tb), acronymSimilarity(tb, ta));
+}
+
+/** Connectives that are never part of a company's initials ("National Stock Exchange of India"). */
+const ACRONYM_SKIP = new Set(['OF', 'AND', 'FOR', 'IN']);
+
+/**
+ * Scores an issue listed under its initials against the registrar's full name — "NSE" against
+ * "National Stock Exchange of India Limited" shares no word at all, so token overlap alone
+ * scores it 0 and the issue never gets a registrar.
+ *
+ * Deliberately scored just above the resolver's minimum rather than as a strong match: initials
+ * are ambiguous, so a registrar that lists the full name word-for-word still outranks this.
+ */
+function acronymSimilarity(short: Set<string>, long: Set<string>): number {
+  if (short.size !== 1 || long.size < 2) return 0;
+  const [acronym] = short;
+  if (acronym.length < 2 || acronym.length > 6 || !/^[A-Z]+$/.test(acronym)) return 0;
+  const initials = [...long]
+    .filter((t) => !ACRONYM_SKIP.has(t))
+    .map((t) => t[0])
+    .join('');
+  return initials === acronym ? 0.6 : 0;
 }
