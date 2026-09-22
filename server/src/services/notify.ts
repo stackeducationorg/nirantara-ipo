@@ -95,9 +95,14 @@ async function sendExpo(tokens: string[], input: NotificationInput): Promise<voi
       const tickets = await expo.sendPushNotificationsAsync(chunk);
       tickets.forEach((ticket, i) => {
         // A DeviceNotRegistered ticket means the app was uninstalled — drop the token.
-        if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+        if (ticket.status !== 'error') return;
+        if (ticket.details?.error === 'DeviceNotRegistered') {
           db.prepare('UPDATE device_tokens SET expo_token = NULL WHERE expo_token = ?').run(chunk[i].to as string);
+          return;
         }
+        // Anything else is a delivery failure nobody would otherwise see. InvalidCredentials in
+        // particular means Expo holds no FCM key for the app, so every Android push is dropped.
+        log.warn(`expo push rejected (${ticket.details?.error ?? 'unknown'}): ${ticket.message}`);
       });
     } catch (err) {
       log.warn(`expo push failed: ${(err as Error).message}`);

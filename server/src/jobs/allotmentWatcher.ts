@@ -185,6 +185,24 @@ export async function watchAllotments(): Promise<void> {
   }
 }
 
+/**
+ * Sweeps that left some entries undecided (a lookup error, or still pending), per
+ * `allotment_result:<ipo>:<account>` key. Retried on later ticks, but only this many times
+ * (about three hours at the default 10-minute poll): after that the account is told what could
+ * be checked, rather than one failing entry withholding the result for every other PAN on the
+ * account indefinitely. In memory on purpose — a restart
+ * simply grants a few more retries.
+ */
+const retrySweeps = new Map<string, number>();
+const MAX_RETRY_SWEEPS = 18;
+
+/** Whether the account recorded an application for this issue, i.e. expects to hear back. */
+function hasRecordedApplication(accountId: string, ipoId: string): boolean {
+  return Boolean(
+    db.prepare('SELECT 1 FROM applications WHERE account_id = ? AND ipo_id = ? LIMIT 1').get(accountId, ipoId),
+  );
+}
+
 /** Runs the full PAN sweep per account and pushes the aggregate result exactly once. */
 async function notifyAccounts(ipo: IpoRow): Promise<void> {
   // Only reached for checkable registrars: the watch loop marks resolve-only and captcha-gated
@@ -205,14 +223,46 @@ async function notifyAccounts(ipo: IpoRow): Promise<void> {
       continue;
     }
 
-    // Results can go live for some PANs before others; retry next tick rather than
-    // reporting a half-finished sweep as final.
-    if (!summary.resultsLive || summary.errorAccounts > 0) {
-      outstanding += 1;
-      continue;
+    // Only reached once the issue itself is confirmed published, so every lookup should now
+    // give a definitive answer. What is left undecided is an error (timeout, 429) or an entry
+    // still "pending" (BSE or the registrar not answering for it yet, or a demat-only entry BSE
+    // can never look up). Those are retried for a while, but never allowed to hold an account
+    // back for good: that used to keep the watch open and re-sweep every PAN of every account
+    // on every tick until the registrars rate-limited the server, starving the accounts that
+    // did apply.
+    const pendingEntries = summary.results.filter((r) => r.status === 'pending').length;
+    const unresolved = summary.errorAccounts + pendingEntries;
+
+    if (unresolved > 0) {
+      const tries = (retrySweeps.get(key) ?? 0) + 1;
+      retrySweeps.set(key, tries);
+      if (tries < MAX_RETRY_SWEEPS) {
+        outstanding += 1;
+        continue;
+      }
+      log.warn(`${ipo.name}: ${unresolved} entr${unresolved > 1 ? 'ies' : 'y'} still undecided after ${tries} sweeps — notifying with what is known`);
     }
 
     if (!claimOnce(key)) continue;
+    retrySweeps.delete(key);
+
+    const unchecked = unresolved > 0 ? ` (${unresolved} could not be checked — tap to check again)` : '';
+
+    // Every answer is "not applied": this account simply did not apply. Tell only someone who
+    // recorded an application here, since they are waiting to hear back.
+    if (!summary.resultsLive) {
+      if (hasRecordedApplication(accountId, ipo.id)) {
+        await notify({
+          accountId,
+          ipoId: ipo.id,
+          kind: 'allotment_result',
+          title: `${ipo.name} — no application found`,
+          body: `The registrar has no application on your saved PANs${unchecked}.`,
+          data: { ipoId: ipo.id, allotted: 0, total: summary.totalAccounts },
+        });
+      }
+      continue;
+    }
 
     const gotSome = summary.allottedAccounts > 0;
     await notify({
@@ -220,7 +270,7 @@ async function notifyAccounts(ipo: IpoRow): Promise<void> {
       ipoId: ipo.id,
       kind: 'allotment_result',
       title: gotSome ? `🎉 Allotted in ${ipo.name}` : `${ipo.name} — no allotment`,
-      body: summaryHeadline(summary),
+      body: summaryHeadline(summary) + unchecked,
       data: {
         ipoId: ipo.id,
         allotted: summary.allottedAccounts,
