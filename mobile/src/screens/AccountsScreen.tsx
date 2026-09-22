@@ -19,6 +19,7 @@ export function AccountsScreen() {
 
   const [pan, setPan] = useState('');
   const [label, setLabel] = useState('');
+  const [holderName, setHolderName] = useState('');
   const [demat, setDemat] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -44,11 +45,13 @@ export function AccountsScreen() {
       api.addPan({
         pan: panFilled ? pan.toUpperCase() : undefined,
         label: label.trim() || 'Account',
+        holderName: holderName.trim() || undefined,
         demat: dematClean || undefined,
       }),
     onSuccess: () => {
       setPan('');
       setLabel('');
+      setHolderName('');
       setDemat('');
       void invalidate();
     },
@@ -123,6 +126,22 @@ export function AccountsScreen() {
           value={label}
           onChangeText={setLabel}
         />
+
+        <Text style={{ color: t.textDim, fontSize: 12, fontWeight: '600', marginTop: 12, marginBottom: 5 }}>
+          NAME ON PAN CARD (OPTIONAL)
+        </Text>
+        <TextInput
+          style={inputStyle}
+          placeholder="As printed on the PAN card"
+          placeholderTextColor={t.textFaint}
+          maxLength={80}
+          autoCapitalize="characters"
+          value={holderName}
+          onChangeText={setHolderName}
+        />
+        <Text style={{ color: t.textFaint, fontSize: 11.5, marginTop: 5 }}>
+          Shown on allotment results when the registrar gives no name, and checked against it when it does.
+        </Text>
 
         {add.isError && <View style={{ marginTop: 12 }}><Banner tone="error">{(add.error as Error).message}</Banner></View>}
 

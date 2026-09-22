@@ -43,8 +43,56 @@ export interface AllotmentResult {
   allottedQty: number | null;
   amount: number | null;
   nameOnRecord: string | null;
+  /** The name saved against this entry in the PAN book, if any. */
+  holderName: string | null;
+  /** The name to show: the registrar's when it gave one, else the PAN book's, else the label. */
+  displayName: string;
+  /** Where displayName came from, so the UI can say when it is not the registrar's. */
+  nameSource: 'registrar' | 'pan_book' | 'label';
+  /** The registrar's name and the PAN book's both exist and do not describe the same person. */
+  nameMismatch: boolean;
   message: string | null;
   checkedAt: string;
+}
+
+/** Honorifics registrars prefix to names ("MR. A B C") that the PAN book never carries. */
+const HONORIFICS = new Set(['MR', 'MRS', 'MS', 'MISS', 'DR', 'SHRI', 'SMT', 'KUM', 'KUMARI', 'M/S']);
+
+function nameTokens(name: string): string[] {
+  return name
+    .toUpperCase()
+    .replace(/[^A-Z ]+/g, ' ')
+    .split(' ')
+    .filter((t) => t && !HONORIFICS.has(t));
+}
+
+/**
+ * Whether two renderings of a name plausibly belong to the same person. Registrars and PAN
+ * cards disagree on order ("JOSHI ANKIT"), initials and middle names, so it is a match when
+ * every word of the shorter name appears in the longer one, an initial standing for any word
+ * that starts with it.
+ */
+export function namesAgree(a: string, b: string): boolean {
+  const ta = nameTokens(a);
+  const tb = nameTokens(b);
+  if (ta.length === 0 || tb.length === 0) return true;
+  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return short.every((word) =>
+    long.some((other) => other === word || (word.length === 1 && other.startsWith(word)) || (other.length === 1 && word.startsWith(other))),
+  );
+}
+
+function nameFields(
+  nameOnRecord: string | null,
+  holderName: string | null,
+  label: string,
+): Pick<AllotmentResult, 'holderName' | 'displayName' | 'nameSource' | 'nameMismatch'> {
+  return {
+    holderName,
+    displayName: nameOnRecord ?? holderName ?? label,
+    nameSource: nameOnRecord ? 'registrar' : holderName ? 'pan_book' : 'label',
+    nameMismatch: Boolean(nameOnRecord && holderName && !namesAgree(nameOnRecord, holderName)),
+  };
 }
 
 export interface AllotmentSummary {
@@ -320,6 +368,7 @@ export async function checkOne(
     allottedQty,
     amount,
     nameOnRecord,
+    ...nameFields(nameOnRecord, pan.holder_name ?? nameOnRecord, pan.label),
     message,
     checkedAt: new Date().toISOString(),
   };
@@ -541,7 +590,7 @@ export function getStoredSummary(accountId: string, ipoId: string): AllotmentSum
 
   const rows = db
     .prepare(
-      `SELECT r.*, p.label, p.pan_enc, p.demat_enc
+      `SELECT r.*, p.label, p.pan_enc, p.demat_enc, p.holder_name
        FROM allotment_results r JOIN pans p ON p.id = r.pan_id
        WHERE r.account_id = ? AND r.ipo_id = ?`,
     )
@@ -549,6 +598,7 @@ export function getStoredSummary(accountId: string, ipoId: string): AllotmentSum
     label: string;
     pan_enc: string | null;
     demat_enc: string | null;
+    holder_name: string | null;
   })[];
 
   if (rows.length === 0) return null;
@@ -562,6 +612,7 @@ export function getStoredSummary(accountId: string, ipoId: string): AllotmentSum
     allottedQty: (row.allotted_qty as number) ?? null,
     amount: (row.amount as number) ?? null,
     nameOnRecord: (row.name_on_record as string) ?? null,
+    ...nameFields((row.name_on_record as string) ?? null, row.holder_name, row.label),
     message: (row.message as string) ?? null,
     checkedAt: String(row.checked_at),
   }));

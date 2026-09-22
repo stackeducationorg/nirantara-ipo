@@ -12,6 +12,7 @@ function AddPan({ onDone }: { onDone: () => void }) {
   const queryClient = useQueryClient();
   const [pan, setPan] = useState('');
   const [label, setLabel] = useState('');
+  const [holderName, setHolderName] = useState('');
   const [demat, setDemat] = useState('');
 
   const add = useMutation({
@@ -19,6 +20,7 @@ function AddPan({ onDone }: { onDone: () => void }) {
       api.addPan({
         pan: pan.trim() ? pan.toUpperCase() : undefined,
         label: label.trim() || 'Account',
+        holderName: holderName.trim() || undefined,
         demat: demat.trim() ? demat.trim().toUpperCase() : undefined,
       }),
     onSuccess: () => {
@@ -101,6 +103,25 @@ function AddPan({ onDone }: { onDone: () => void }) {
           value={label}
           onChange={(e) => setLabel(e.target.value)}
         />
+      </div>
+
+      <div className="field">
+        <label className="label" htmlFor="holderName">
+          Name on PAN card <span className="faint">(optional)</span>
+        </label>
+        <input
+          id="holderName"
+          className="input"
+          placeholder="As printed on the PAN card"
+          maxLength={80}
+          autoComplete="off"
+          value={holderName}
+          onChange={(e) => setHolderName(e.target.value)}
+        />
+        <p className="input-hint">
+          Shown on allotment results when the registrar does not return a name, and checked
+          against the registrar's name when it does. Filled in automatically after the first result.
+        </p>
       </div>
 
       {add.isError && (
