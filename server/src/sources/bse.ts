@@ -61,6 +61,10 @@ interface StatusResponse {
 }
 
 let listCache: { at: number; items: BseIssue[] } | null = null;
+/** When BSE blocks us (Akamai "Access Denied") the list fetch fails; remember that briefly so
+ *  a sweep of many issues does not re-hammer a blocked endpoint on every entry. */
+let listFailedAt = 0;
+const LIST_FAIL_COOLDOWN_MS = 10 * 60 * 1000;
 
 /** Small backoff wrapper: request() retries 5xx/network, but BSE answers 429 when hurried. */
 async function getJsonWithRateLimit<T>(url: string): Promise<T> {
@@ -86,21 +90,31 @@ async function getJsonWithRateLimit<T>(url: string): Promise<T> {
  */
 export async function fetchBseIssues(): Promise<BseIssue[]> {
   if (listCache && Date.now() - listCache.at < LIST_TTL_MS) return listCache.items;
+  // Recently blocked/unreachable — don't hammer it; the caller falls back to the registrar.
+  if (Date.now() - listFailedAt < LIST_FAIL_COOLDOWN_MS) return [];
 
-  const json = await getJsonWithRateLimit<IssueListResponse>(`${API}/appli_check_ng/w?itype=BB`);
-  const rows = json.table ?? json.Table ?? [];
-  if (!Array.isArray(rows)) throw new Error('BSE returned an unexpected issue list');
+  try {
+    const json = await getJsonWithRateLimit<IssueListResponse>(`${API}/appli_check_ng/w?itype=BB`);
+    const rows = json.table ?? json.Table ?? [];
+    if (!Array.isArray(rows)) throw new Error('BSE returned an unexpected issue list');
 
-  const items = rows.flatMap((row) => {
-    const imId = String(row.IM_ID ?? '').trim();
-    const name = (row.IPOName ?? '').trim();
-    if (!imId || !name) return [];
-    return [{ imId, name, symbol: (row.IPOSymbol ?? '').trim() }];
-  });
+    const items = rows.flatMap((row) => {
+      const imId = String(row.IM_ID ?? '').trim();
+      const name = (row.IPOName ?? '').trim();
+      if (!imId || !name) return [];
+      return [{ imId, name, symbol: (row.IPOSymbol ?? '').trim() }];
+    });
 
-  listCache = { at: Date.now(), items };
-  log.info(`${items.length} equity issue(s) open for application status`);
-  return items;
+    listCache = { at: Date.now(), items };
+    log.info(`${items.length} equity issue(s) open for application status`);
+    return items;
+  } catch (err) {
+    // BSE's Akamai edge intermittently denies server IPs; treat an unreachable list as "no
+    // issues" so lookups cleanly fall back to the registrar instead of erroring per entry.
+    listFailedAt = Date.now();
+    log.warn(`BSE issue list unavailable (${(err as Error).message.split('\n')[0]}) — falling back for ${LIST_FAIL_COOLDOWN_MS / 60000}m`);
+    return [];
+  }
 }
 
 /** Clears the cached issue list so the next lookup re-fetches it. */
@@ -208,9 +222,16 @@ export async function checkBseByPan(imId: string, pan: string, expectedSymbol?: 
  * issue, so the caller can report "not open yet" rather than a false "not applied".
  */
 export async function checkIpoViaBse(ipoName: string, pan: string): Promise<AllotmentLookup | null> {
-  const issue = await resolveBseImId(ipoName);
-  if (!issue) return null;
-  return checkBseByPan(issue.imId, pan, issue.symbol);
+  try {
+    const issue = await resolveBseImId(ipoName);
+    if (!issue) return null;
+    return await checkBseByPan(issue.imId, pan, issue.symbol);
+  } catch (err) {
+    // Never throw: a BSE failure (block, timeout, shape change) must let the caller fall back
+    // to the registrar's own lookup rather than record an error for the entry.
+    log.warn(`BSE lookup failed for "${ipoName}" (${(err as Error).message.split('\n')[0]})`);
+    return null;
+  }
 }
 
 /** Registrar keys whose allotment lookup is routed through BSE instead of the registrar's own
