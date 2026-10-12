@@ -325,30 +325,23 @@ async function check(query: AllotmentQuery): Promise<AllotmentLookup> {
   }
 
   /**
-   * Hardening recap, verified against the live site (ipo/ipo1/ipo2 hosts):
-   *   - PN (PAN): gated server-side. Empty captcha fields -> Status "CAPTCHA",
-   *     rejected before the data lookup.
-   *   - AP (application no) and BN (demat): NOT gated. Requests with empty
-   *     CaptchaToken/CaptchaAnswer pass straight through to the data layer.
+   * Every selection type is tried directly first, with whatever captcha the caller supplied
+   * (usually none). Verified live on the ipo/ipo1/ipo2 hosts: Bigshare currently answers AP,
+   * BN *and* PN from the data layer with empty CaptchaToken/CaptchaAnswer — a malformed PAN
+   * comes back "Please enter a valid PAN" and a garbage token is ignored, so the lookup really
+   * runs rather than being silently refused. The captcha gate that once covered PN is not being
+   * enforced.
    *
-   * So AP/BN run captcha-free. PAN runs the auto-solve loop (human answer first
-   * if one was supplied, otherwise OCR). If Bigshare ever extends the gate to
-   * AP/BN, the server answers Status "CAPTCHA" and we fall into the same loop.
+   * It can be switched back on at any time (as BSE's was), so this stays defensive: only when
+   * the server actually answers Status "CAPTCHA" do we fall into the solve loop — a human
+   * answer counts as one attempt, otherwise OCR if an operator enabled it, else a challenge is
+   * surfaced. So a re-enabled gate is handled transparently for every identifier.
    */
-
-  // ----- AP / BN: direct, captcha-free ---------------------------------------
-  if (by === 'application' || by === 'demat') {
-    const d = await postLookup(buildPayload(query, undefined));
-    if (d.Status === 'CAPTCHA') {
-      // Gate extended to this identifier type — transparently auto-solve.
-      return attemptWithCaptcha(query, MAX_CAPTCHA_ATTEMPTS);
-    }
-    return handleResponse(d);
+  const d = await postLookup(buildPayload(query, query.captcha ?? undefined));
+  if (d.Status === 'CAPTCHA') {
+    return attemptWithCaptcha(query, query.captcha?.answer ? 1 : MAX_CAPTCHA_ATTEMPTS);
   }
-
-  // ----- PN (PAN): captcha-backed --------------------------------------------
-  // Caller-supplied answer counts as one attempt; otherwise OCR, up to N tries.
-  return attemptWithCaptcha(query, query.captcha?.answer ? 1 : MAX_CAPTCHA_ATTEMPTS);
+  return handleResponse(d);
 }
 
 export const bigshare: RegistrarAdapter = {
@@ -357,29 +350,22 @@ export const bigshare: RegistrarAdapter = {
   driver: 'http',
   match: ['bigshare'],
   searchBy: ['application', 'pan', 'demat'],
-  /**
-   * Only the PAN path is gated. An application number or a beneficiary (demat) id already
-   * demonstrates the caller holds the application, so Bigshare answers AP and BN straight
-   * from the data layer — which makes them the routes to try first, and why `demat` and
-   * `application` sort ahead of `pan` here.
-   */
+  // Demat and application already prove the caller holds the application, so they are tried
+  // ahead of PAN; PAN still sorts last but is no longer a gated route (see below).
   searchOrder: ['demat', 'application', 'pan'],
   /**
-   * PAN lookups are captcha-gated server-side (AP/BN are not, but PAN is how every
-   * saved entry is actually searched). This used to read false on the theory that the
-   * OCR hook below made it self-service, but unattended OCR solving fires a real
-   * captcha-fetch per PAN — across a full saved book that's enough requests to get
-   * Bigshare's own server to rate-limit the whole batch (HTTP 429 on every entry).
-   * true restores the same skip-on-auto / relay-one-challenge-to-the-human-on-manual
-   * behaviour every other gated registrar already uses (see cameo.ts).
+   * `needsCaptcha` stays true as a latent capability: Bigshare ships a captcha and can start
+   * enforcing it again at any moment, and `check()` is ready to solve or surface one if the
+   * server ever answers Status "CAPTCHA".
    *
-   * It stays true, but it is no longer read as "every Bigshare lookup needs a human".
-   * `captchaFreeSearchBy` below narrows the gate to the one path that actually carries it,
-   * so an entry with a demat account on file is checked — and swept automatically — with
-   * no challenge shown to anyone.
+   * But right now it enforces the gate on NO identifier — AP, BN and PN all answer from the
+   * data layer with empty captcha fields (verified live). So every path is listed as
+   * captcha-free, which lets the automatic sweep check PAN-only entries directly, with no BSE
+   * and no challenge. If Bigshare re-enables the gate, `check()` returns Status "CAPTCHA" and
+   * the service degrades that lookup to "could not be checked" rather than guessing.
    */
   needsCaptcha: true,
-  captchaFreeSearchBy: ['application', 'demat'],
+  captchaFreeSearchBy: ['application', 'demat', 'pan'],
   newCaptcha,
   listCompanies,
   check,

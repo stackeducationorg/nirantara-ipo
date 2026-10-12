@@ -217,14 +217,27 @@ export async function checkOne(
     let found: AllotmentLookup | null = null;
     let fallback: AllotmentLookup | null = null;
     for (const by of routes) {
-      const attempt = await adapter!.check({
-        companyCode: ipo.registrar_code!,
-        pan: plainPan ?? '',
-        demat,
-        by,
-        // A solved challenge belongs only to the path that demanded one.
-        captcha: needsCaptchaFor(adapter!, by) ? captcha : undefined,
-      });
+      let attempt: AllotmentLookup;
+      try {
+        attempt = await adapter!.check({
+          companyCode: ipo.registrar_code!,
+          pan: plainPan ?? '',
+          demat,
+          by,
+          // A solved challenge belongs only to the path that demanded one.
+          captcha: needsCaptchaFor(adapter!, by) ? captcha : undefined,
+        });
+      } catch (err) {
+        // A route listed as captcha-free can still demand one if the registrar re-enables its
+        // gate (as Bigshare's PAN path may). In the ungated fallback nobody is there to answer,
+        // so degrade that route to "pending" and move on rather than letting the whole sweep
+        // fail. A deliberate manual check (ungatedOnly === false) still surfaces the challenge.
+        if (err instanceof CaptchaRequiredError && ungatedOnly) {
+          fallback = fallback ?? { status: 'pending', message: `${adapter!.name} now requires a captcha` };
+          continue;
+        }
+        throw err;
+      }
       if (attempt.status !== 'not_applied' && attempt.status !== 'error') {
         found = attempt;
         break;
