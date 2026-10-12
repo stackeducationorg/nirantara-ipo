@@ -139,6 +139,29 @@ function identifiersOn(pan: PanRecord): SearchBy[] {
   return available;
 }
 
+/** Preference order when more than one source answers for the same entry: a found result
+ *  beats "no application", which beats an undecided/failed one. */
+const LOOKUP_RANK: Record<AllotmentStatus, number> = {
+  allotted: 0,
+  not_allotted: 1,
+  not_applied: 2,
+  pending: 3,
+  error: 4,
+};
+
+/** Picks the most informative lookup among candidates (e.g. BSE vs the registrar's own path). */
+function pickBestLookup(candidates: AllotmentLookup[]): AllotmentLookup {
+  return candidates.reduce((best, c) => (LOOKUP_RANK[c.status] < LOOKUP_RANK[best.status] ? c : best));
+}
+
+/** Whether this account recorded an application for this IPO in the app. Evidence that a
+ *  "not allotted" answer is real rather than a non-applicant's empty record. */
+function accountAppliedTo(accountId: string, ipoId: string): boolean {
+  return Boolean(
+    db.prepare('SELECT 1 FROM applications WHERE account_id = ? AND ipo_id = ? LIMIT 1').get(accountId, ipoId),
+  );
+}
+
 const saveStmt = db.prepare(`
 INSERT INTO allotment_results (
   id, ipo_id, pan_id, account_id, status, applied_qty, allotted_qty, amount,
@@ -168,112 +191,116 @@ export async function checkOne(
   const base = { panId: pan.id, label: pan.label, panMasked: maskIdentity(pan.pan_enc, pan.demat_enc) };
   const adapter = getRegistrar(ipo.registrar_key);
 
-  let status: AllotmentStatus = 'pending';
-  let appliedQty: number | null = null;
-  let allottedQty: number | null = null;
-  let nameOnRecord: string | null = null;
-  let message: string | null = null;
-  let raw: unknown = null;
+  // A demat account is a second way to reach the same application. Some registrars index
+  // applications made through a broker by demat id and return nothing for the PAN.
+  const demat: DematAccount | null =
+    pan.demat_enc && (pan.depository === 'NSDL' || pan.depository === 'CDSL')
+      ? { depository: pan.depository, id: decryptPan(pan.demat_enc) }
+      : null;
 
-  if (!adapter || !ipo.registrar_code) {
-    status = 'pending';
-    message = 'Registrar has not opened allotment lookup for this IPO yet';
-  } else if (BSE_ROUTED_REGISTRARS.has(adapter.key)) {
-    // This registrar's own lookup is captcha-gated, so the issue is answered on BSE instead —
-    // every issue it handles lists on the exchange, and BSE's status service takes a PAN with
-    // no captcha. The registrar adapter still resolved the issue; it is simply not called here.
-    if (!plainPan) {
-      // BSE looks up by PAN (or application number), not by demat account, so a demat-only
-      // entry has nothing to search with. Left pending with a clear prompt rather than
-      // falling back to the registrar's captcha path.
-      status = 'pending';
-      message = 'Add a PAN to this entry to check it on BSE';
-    } else {
+  /**
+   * Looks the entry up through the registrar's own adapter, trying its ungated identifiers
+   * first and taking the first real answer. `ungatedOnly` drops captcha-gated routes entirely
+   * — used as the BSE fallback, where a PAN search would demand a challenge nobody can answer.
+   */
+  const checkViaRegistrar = async (ungatedOnly: boolean): Promise<AllotmentLookup> => {
+    let routes = searchRoutes(adapter!, identifiersOn(pan));
+    if (ungatedOnly) routes = routes.filter((by) => !needsCaptchaFor(adapter!, by));
+    if (routes.length === 0) {
+      return {
+        status: 'pending',
+        message: plainPan
+          ? `${adapter!.name} could not be checked without a captcha`
+          : `${adapter!.name} can only search by PAN — add one to check this entry`,
+      };
+    }
+    let found: AllotmentLookup | null = null;
+    let fallback: AllotmentLookup | null = null;
+    for (const by of routes) {
+      let attempt: AllotmentLookup;
       try {
-        const lookup = await checkIpoViaBse(ipo.name, plainPan);
-        if (!lookup) {
-          // BSE only lists an issue for lookup close to its allotment date.
-          status = 'pending';
-          message = 'BSE has not opened application status for this issue yet';
-        } else {
-          status = lookup.status;
-          appliedQty = lookup.appliedQty ?? null;
-          allottedQty = lookup.allottedQty ?? null;
-          nameOnRecord = lookup.nameOnRecord ?? null;
-          message = lookup.message ?? null;
-          raw = lookup.raw ?? null;
-        }
+        attempt = await adapter!.check({
+          companyCode: ipo.registrar_code!,
+          pan: plainPan ?? '',
+          demat,
+          by,
+          // A solved challenge belongs only to the path that demanded one.
+          captcha: needsCaptchaFor(adapter!, by) ? captcha : undefined,
+        });
       } catch (err) {
-        status = 'error';
-        message = (err as Error).message;
-        log.warn(`BSE check failed for ${pan.label} on ${ipo.name}: ${message}`);
+        // A route listed as captcha-free can still demand one if the registrar re-enables its
+        // gate (as Bigshare's PAN path may). In the ungated fallback nobody is there to answer,
+        // so degrade that route to "pending" and move on rather than letting the whole sweep
+        // fail. A deliberate manual check (ungatedOnly === false) still surfaces the challenge.
+        if (err instanceof CaptchaRequiredError && ungatedOnly) {
+          fallback = fallback ?? { status: 'pending', message: `${adapter!.name} now requires a captcha` };
+          continue;
+        }
+        throw err;
+      }
+      if (attempt.status !== 'not_applied' && attempt.status !== 'error') {
+        found = attempt;
+        break;
+      }
+      // "not applied" from one identifier is not proof: a broker application is indexed by
+      // demat and answers nothing for the PAN. Keep it only as the answer of last resort.
+      if (!fallback || (fallback.status === 'error' && attempt.status === 'not_applied')) {
+        fallback = attempt;
       }
     }
-  } else {
-    // A demat account is a second way to reach the same application. Some registrars index
-    // applications made through a broker by demat id and return nothing for the PAN, so a
-    // PAN miss is retried by demat rather than reported as "not applied".
-    const demat: DematAccount | null =
-      pan.demat_enc && (pan.depository === 'NSDL' || pan.depository === 'CDSL')
-        ? { depository: pan.depository, id: decryptPan(pan.demat_enc) }
-        : null;
+    return found ?? fallback!;
+  };
 
-    // Which identifiers this entry actually carries, narrowed to what the registrar can
-    // search by and ordered so the registrar's ungated routes are tried first. A saved
-    // entry with a demat account is therefore answered without any challenge at all on a
-    // registrar that gates only its PAN path.
-    const routes = searchRoutes(adapter, identifiersOn(pan));
+  let lookup: AllotmentLookup = {
+    status: 'pending',
+    message: 'Registrar has not opened allotment lookup for this IPO yet',
+  };
 
-    if (routes.length === 0) {
-      // Saved with only a demat account, against a registrar that cannot search by one.
-      status = 'pending';
-      message = `${adapter.name} can only search by PAN — add one to check this entry`;
-    } else {
-      try {
-        let found: AllotmentLookup | null = null;
-        let fallback: AllotmentLookup | null = null;
-
-        for (const by of routes) {
-          const attempt = await adapter.check({
-            companyCode: ipo.registrar_code,
-            pan: plainPan ?? '',
-            demat,
-            by,
-            // A solved challenge belongs only to the path that demanded one; handing it to
-            // an ungated lookup would spend the token for nothing.
-            captcha: needsCaptchaFor(adapter, by) ? captcha : undefined,
-          });
-
-          if (attempt.status !== 'not_applied' && attempt.status !== 'error') {
-            found = attempt;
-            break;
-          }
-
-          // "not applied" from one identifier is not proof of anything: an application made
-          // through a broker is indexed by demat and answers nothing for the PAN. Keep it
-          // only as the answer of last resort, and prefer it to an outright error.
-          if (!fallback || (fallback.status === 'error' && attempt.status === 'not_applied')) {
-            fallback = attempt;
-          }
+  if (adapter && ipo.registrar_code) {
+    try {
+      if (BSE_ROUTED_REGISTRARS.has(adapter.key)) {
+        // Prefer BSE — it answers by PAN with no captcha. But BSE now intermittently blocks
+        // server requests (Akamai "Access Denied"), so never depend on it alone: fall back to
+        // the registrar's own ungated paths (demat / application) rather than leave the issue
+        // unchecked. checkIpoViaBse returns null when BSE cannot answer — blocked, or not
+        // listing the issue yet — and never throws, so the fallback always runs.
+        const candidates: AllotmentLookup[] = [];
+        if (plainPan) {
+          const viaBse = await checkIpoViaBse(ipo.name, plainPan);
+          if (viaBse) candidates.push(viaBse);
         }
-
-        const lookup = found ?? fallback!;
-
-        status = lookup.status;
-        appliedQty = lookup.appliedQty ?? null;
-        allottedQty = lookup.allottedQty ?? null;
-        nameOnRecord = lookup.nameOnRecord ?? null;
-        message = lookup.message ?? null;
-        raw = lookup.raw ?? null;
-      } catch (err) {
-        // A captcha demand is not a failure to record — it must reach the caller so the UI
-        // can show the challenge. Swallowing it here is what produced a wall of stored
-        // "check failed" rows and no way to enter a captcha.
-        if (err instanceof CaptchaRequiredError) throw err;
-        status = 'error';
-        message = (err as Error).message;
-        log.warn(`check failed for ${pan.label} on ${ipo.name}: ${message}`);
+        candidates.push(await checkViaRegistrar(true));
+        lookup = pickBestLookup(candidates);
+      } else {
+        lookup = await checkViaRegistrar(false);
       }
+    } catch (err) {
+      // A captcha demand must reach the caller so the UI can show the challenge.
+      if (err instanceof CaptchaRequiredError) throw err;
+      lookup = { status: 'error', message: (err as Error).message };
+      log.warn(`check failed for ${pan.label} on ${ipo.name}: ${lookup.message}`);
+    }
+  }
+
+  let status: AllotmentStatus = lookup.status;
+  let appliedQty: number | null = lookup.appliedQty ?? null;
+  let allottedQty: number | null = lookup.allottedQty ?? null;
+  let nameOnRecord: string | null = lookup.nameOnRecord ?? null;
+  let message: string | null = lookup.message ?? null;
+  let raw: unknown = lookup.raw ?? null;
+  const applicationNo = lookup.applicationNo ?? null;
+
+  // A registrar that answers a non-applicant with a zero/empty record reads as "not allotted",
+  // which would then email the account about an IPO it never applied to. Only trust
+  // "not allotted" when there is evidence of a real application: a bid quantity, an application
+  // number, or an application the user recorded. Otherwise it is really "no application found",
+  // which never triggers a result notification.
+  if (status === 'not_allotted') {
+    const applied =
+      (appliedQty ?? 0) > 0 || Boolean(applicationNo) || accountAppliedTo(pan.account_id, ipo.id);
+    if (!applied) {
+      status = 'not_applied';
+      message = message ?? 'No application found';
     }
   }
 
