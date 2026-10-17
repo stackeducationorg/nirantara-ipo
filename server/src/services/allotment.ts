@@ -154,14 +154,6 @@ function pickBestLookup(candidates: AllotmentLookup[]): AllotmentLookup {
   return candidates.reduce((best, c) => (LOOKUP_RANK[c.status] < LOOKUP_RANK[best.status] ? c : best));
 }
 
-/** Whether this account recorded an application for this IPO in the app. Evidence that a
- *  "not allotted" answer is real rather than a non-applicant's empty record. */
-function accountAppliedTo(accountId: string, ipoId: string): boolean {
-  return Boolean(
-    db.prepare('SELECT 1 FROM applications WHERE account_id = ? AND ipo_id = ? LIMIT 1').get(accountId, ipoId),
-  );
-}
-
 const saveStmt = db.prepare(`
 INSERT INTO allotment_results (
   id, ipo_id, pan_id, account_id, status, applied_qty, allotted_qty, amount,
@@ -288,21 +280,20 @@ export async function checkOne(
   let nameOnRecord: string | null = lookup.nameOnRecord ?? null;
   let message: string | null = lookup.message ?? null;
   let raw: unknown = lookup.raw ?? null;
-  const applicationNo = lookup.applicationNo ?? null;
 
-  // A registrar that answers a non-applicant with a zero/empty record reads as "not allotted",
-  // which would then email the account about an IPO it never applied to. Only trust
-  // "not allotted" when there is evidence of a real application: a bid quantity, an application
-  // number, or an application the user recorded. Otherwise it is really "no application found",
-  // which never triggers a result notification.
-  if (status === 'not_allotted') {
-    const applied =
-      (appliedQty ?? 0) > 0 || Boolean(applicationNo) || accountAppliedTo(pan.account_id, ipo.id);
-    if (!applied) {
-      status = 'not_applied';
-      message = message ?? 'No application found';
-    }
-  }
+  // Trust the adapter's verdict. Every registrar adapter (and the BSE source) returns
+  // 'not_applied' when it finds no application record for this PAN, and 'not_allotted' ONLY when
+  // it found a real record showing zero allotment — so a 'not_allotted' reaching here already
+  // means the application exists.
+  //
+  // This used to be re-checked against a parsed bid quantity / application number / a
+  // user-recorded application, downgrading to "No application found" when none was present. But
+  // those secondary fields vary by issue — MUFG's not-allotted rows, for one, do not always
+  // expose an applied quantity or application number under the names the parser looks for — so a
+  // miss wrongly reported a genuine non-allottee as "No application found" and withheld their
+  // result email. The non-applicant case that guard was added for is now handled at each
+  // adapter's source (BSE's IsData/appl-no check, the registrars' empty-record -> not_applied),
+  // so no second-guessing is needed, or correct, here.
 
   if (status === 'error') {
     // A retry that fails transiently (timeout, temporary block) must not erase a result
