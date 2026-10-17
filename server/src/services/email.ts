@@ -64,6 +64,36 @@ const num = (n: number) => new Intl.NumberFormat('en-IN').format(n);
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// Mirrors the site's footer plate. Gmail and Outlook ignore CSS gradients, so every blue
+// surface carries a solid bgcolor underneath and the gradient is a progressive enhancement.
+// Module-scoped so both the allotment email and the announcement broadcast share one look.
+const PLATE_SOLID = '#1433d8';
+const PLATE_GRAD = 'linear-gradient(170deg,#1f40ed 0%,#1433d8 42%,#0a24bd 100%)';
+
+/**
+ * The site's footer stars, rebuilt for email. The real ones are clip-path shapes on a CSS
+ * animation, none of which survives a mail client — and Gmail strips inline SVG — so these
+ * are glyphs in a fixed side column, varied in size and opacity to suggest the same drift.
+ */
+const starColumn = (align: 'left' | 'right') => {
+  const stars: [string, number, number][] = [
+    ['✦', 13, 0.5],
+    ['✧', 9, 0.3],
+    ['✦', 17, 0.65],
+    ['✧', 8, 0.22],
+    ['✦', 11, 0.42],
+    ['✧', 14, 0.3],
+  ];
+  return stars
+    .map(
+      ([glyph, size, alpha], i) => `<div style="font-size:${size}px;line-height:1.9;color:rgba(255,255,255,${alpha});text-align:${
+        // Nudged alternately so the column does not read as a straight line.
+        i % 2 === 0 ? align : align === 'left' ? 'right' : 'left'
+      };">${glyph}</div>`,
+    )
+    .join('');
+};
+
 interface Recipient {
   email: string;
   name: string | null;
@@ -140,36 +170,6 @@ function renderAllotmentEmail(
   const closing = won
     ? `Oversubscription decides most of this, and it is largely luck. Keep applying across your accounts — that is what improves the odds over a year, not any single issue.`
     : `Nothing was allotted, so your blocked funds are released back to your bank automatically, usually within a day or two. Most applications end this way when an issue is heavily oversubscribed — the next one is a fresh draw.`;
-
-  /**
-   * The site's footer stars, rebuilt for email. The real ones are clip-path shapes on a CSS
-   * animation, none of which survives a mail client — and Gmail strips inline SVG — so these
-   * are glyphs in a fixed side column, varied in size and opacity to suggest the same drift.
-   */
-  const starColumn = (align: 'left' | 'right') => {
-    const stars: [string, number, number][] = [
-      ['✦', 13, 0.5],
-      ['✧', 9, 0.3],
-      ['✦', 17, 0.65],
-      ['✧', 8, 0.22],
-      ['✦', 11, 0.42],
-      ['✧', 14, 0.3],
-    ];
-    return stars
-      .map(
-        ([glyph, size, alpha], i) => `<div style="font-size:${size}px;line-height:1.9;color:rgba(255,255,255,${alpha});text-align:${
-          // Nudged alternately so the column does not read as a straight line.
-          i % 2 === 0 ? align : align === 'left' ? 'right' : 'left'
-        };">${glyph}</div>`,
-      )
-      .join('');
-  };
-
-  // Mirrors the site's footer plate. Gmail and Outlook ignore CSS gradients, so every blue
-  // surface carries a solid bgcolor underneath and the gradient is a progressive enhancement.
-  const PLATE_SOLID = '#1433d8';
-  const PLATE_GRAD =
-    'linear-gradient(170deg,#1f40ed 0%,#1433d8 42%,#0a24bd 100%)';
 
   const html = `<!doctype html>
 <html>
@@ -407,4 +407,186 @@ export async function sendAllotmentEmail(
     log.warn(`allotment email for ${ipo.name} to ${who} failed: ${detail}`);
     return false;
   }
+}
+
+/** A plain service announcement — a note from the team, not tied to any one IPO. */
+export interface Announcement {
+  subject: string;
+  /** Big heading on the blue header plate. */
+  heading: string;
+  /** One line under the heading; prefixed with "Hi <first name>," per recipient. */
+  intro: string;
+  /** Body paragraphs. May contain <strong>…</strong>; everything else must be pre-escaped. */
+  paragraphsHtml: string[];
+  /** Plain-text mirror of the body, one entry per paragraph. */
+  paragraphsText: string[];
+  cta?: { label: string; url: string };
+}
+
+/** Renders a branded announcement email for one recipient, reusing the allotment email's shell. */
+function renderAnnouncementEmail(to: Recipient, a: Announcement): { subject: string; html: string; text: string } {
+  const first = to.name?.trim().split(/\s+/)[0] ?? 'there';
+
+  const body = a.paragraphsHtml
+    .map((p) => `<p style="margin:0 0 15px;font-size:14.5px;line-height:1.7;color:#3f3f46;">${p}</p>`)
+    .join('');
+
+  const cta = a.cta
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 30px;">
+         <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};border-radius:9px;">
+           <a href="${a.cta.url}" style="display:inline-block;padding:13px 26px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;">${esc(a.cta.label)}</a>
+         </td></tr></table>`
+    : `<div style="height:14px;"></div>`;
+
+  const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
+  <style>
+    html, body { margin:0 !important; padding:0 !important; width:100% !important; background:#0a24bd !important; }
+    .plate-bg { background:#0a24bd !important; }
+  </style>
+</head>
+<body style="margin:0;padding:0;width:100%;background:#0a24bd;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div class="plate-bg" style="background:#0a24bd;margin:0;padding:0;width:100%;">
+  <table role="presentation" width="100%" height="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0a24bd" class="plate-bg" style="background:#0a24bd;margin:0;padding:0;width:100%;border-collapse:collapse;">
+    <tr><td align="center" bgcolor="#0a24bd" style="background:#0a24bd;padding:26px 12px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;border-radius:16px;overflow:hidden;">
+
+        <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};background-image:${PLATE_GRAD};padding:22px 14px;">
+         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td width="34" valign="top" style="width:34px;">${starColumn('left')}</td>
+          <td valign="top" style="padding:4px 6px;">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            ${
+              logoBuffer
+                ? `<td style="padding-right:11px;vertical-align:middle;">
+                     <img src="cid:${LOGO_CID}" width="32" height="32" alt=""
+                          style="display:block;border-radius:8px;width:32px;height:32px;" />
+                   </td>`
+                : ''
+            }
+            <td style="vertical-align:middle;">
+              <div style="font-size:16px;font-weight:700;letter-spacing:-.01em;color:#ffffff;">Nirantara IPO</div>
+              <div style="font-size:12px;color:rgba(255,255,255,.62);margin-top:1px;">A note from the team</div>
+            </td>
+          </tr></table>
+
+          <h1 style="margin:22px 0 8px;font-size:26px;line-height:1.2;color:#ffffff;letter-spacing:-.025em;font-weight:700;">
+            ${esc(a.heading)}
+          </h1>
+          <p style="margin:0;font-size:14.5px;line-height:1.6;color:rgba(255,255,255,.78);">Hi ${esc(first)}, ${esc(a.intro)}</p>
+          </td>
+          <td width="34" valign="top" style="width:34px;">${starColumn('right')}</td>
+         </tr></table>
+        </td></tr>
+
+        <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:26px 26px 0;">
+          ${body}
+          ${cta}
+        </td></tr>
+
+        <tr><td bgcolor="${PLATE_SOLID}" style="background:${PLATE_SOLID};background-image:${PLATE_GRAD};padding:20px 14px;">
+         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td width="34" valign="top" style="width:34px;">${starColumn('left')}</td>
+          <td valign="top" style="padding:4px 6px;">
+          <div style="font-size:15px;font-weight:700;color:rgba(255,255,255,.92);letter-spacing:-.01em;">NIRANTARA</div>
+          <div style="font-size:11.5px;line-height:1.65;color:rgba(255,255,255,.6);margin-top:7px;">
+            Sent because you use Nirantara IPO. Manage alerts in the app under Alerts.<br>
+            Nothing here is investment advice.
+          </div>
+          <div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:10px;">
+            All rights reserved to Nirantara IPO · developed by stackeducation.in
+          </div>
+          </td>
+          <td width="34" valign="top" style="width:34px;">${starColumn('right')}</td>
+         </tr></table>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+  </div>
+</body></html>`;
+
+  const text = [
+    a.heading,
+    '',
+    `Hi ${first}, ${a.intro}`,
+    '',
+    ...a.paragraphsText,
+    ...(a.cta ? ['', `${a.cta.label}: ${a.cta.url}`] : []),
+  ].join('\n');
+
+  return { subject: a.subject, html, text };
+}
+
+/**
+ * Sends one announcement to every account that has an email address.
+ *
+ * Defaults to a dry run — it reports how many recipients it would reach and sends nothing, so
+ * the audience can be checked before a real send that cannot be recalled. Paced gently
+ * (sequential, small gap) because Gmail throttles bursts, and never throws: one bad address
+ * must not stop the rest. Returns the counts for the caller to report.
+ */
+export async function broadcastAnnouncementEmail(
+  a: Announcement,
+  opts: { dryRun?: boolean } = {},
+): Promise<{ recipients: number; sent: number; failed: number; dryRun: boolean }> {
+  const dryRun = opts.dryRun !== false;
+  const rows = db
+    .prepare(`SELECT id, email, name FROM accounts WHERE email IS NOT NULL AND TRIM(email) <> ''`)
+    .all() as { id: string; email: string; name: string | null }[];
+
+  if (dryRun) {
+    log.info(`announcement "${a.subject}" dry run — would reach ${rows.length} recipient(s)`);
+    return { recipients: rows.length, sent: 0, failed: 0, dryRun: true };
+  }
+
+  const t = mailer();
+  if (!t) {
+    log.warn(`announcement "${a.subject}" not sent: SMTP_USER or SMTP_PASS is not set`);
+    return { recipients: rows.length, sent: 0, failed: rows.length, dryRun: false };
+  }
+
+  let sent = 0;
+  let failed = 0;
+  for (const r of rows) {
+    const to: Recipient = { email: r.email, name: r.name };
+    try {
+      const { subject, html, text } = renderAnnouncementEmail(to, a);
+      const info = await t.sendMail({
+        from: config.smtp.from,
+        to: r.email,
+        subject,
+        html,
+        text,
+        replyTo: config.smtp.user,
+        headers: {
+          'List-Unsubscribe': '<https://www.nirantara.cloud/alerts>',
+          'X-Entity-Ref-ID': `announcement-${r.email}`,
+        },
+        attachments: logoBuffer
+          ? [{ filename: 'logo.png', content: logoBuffer, cid: LOGO_CID, contentDisposition: 'inline' }]
+          : [],
+      });
+      if (info.rejected.length > 0) {
+        log.warn(`announcement to ${maskEmail(r.email)} rejected: ${info.response}`);
+        failed += 1;
+      } else {
+        sent += 1;
+      }
+    } catch (err) {
+      log.warn(`announcement to ${maskEmail(r.email)} failed: ${(err as Error).message.split('\n')[0]}`);
+      failed += 1;
+    }
+    // Gentle spacing so a few hundred messages do not trip Gmail's burst limits.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+
+  log.info(`announcement "${a.subject}" -> ${sent}/${rows.length} sent, ${failed} failed`);
+  return { recipients: rows.length, sent, failed, dryRun: false };
 }

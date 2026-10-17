@@ -18,6 +18,7 @@ import { notificationsRouter, watchlistRouter } from './routes/notifications.js'
 import { pansRouter } from './routes/pans.js';
 import { sendersRouter } from './routes/senders.js';
 import { broadcast } from './services/notify.js';
+import { broadcastAnnouncementEmail, type Announcement } from './services/email.js';
 import { logger } from './util/logger.js';
 
 const log = logger('server');
@@ -118,6 +119,50 @@ app.post('/api/admin/broadcast', async (req, res) => {
   }
 
   res.json(await broadcast(title.trim(), body.trim(), { dryRun: dryRun !== false }));
+});
+
+/**
+ * One-tap service apology for the HD Fire Protect display glitch — a branded email to every
+ * account with an address, plus the same note as a push to every device. Content is fixed here
+ * so there is no long payload to pass; the only knob is the send switch.
+ *
+ * Registered before /api/admin/:job (a catch-all) so "apology" is not read as a job name.
+ * Defaults to a dry run: it reports the audience and sends nothing. A real send needs
+ * `dryRun: false` spelled out, because neither an email nor a push can be recalled.
+ */
+app.post('/api/admin/apology', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const dryRun = (req.body?.dryRun as boolean | undefined) !== false;
+
+  const email: Announcement = {
+    subject: 'A heartfelt sorry from Nirantara 💙',
+    heading: 'We owe you a sorry',
+    intro: "earlier a technical glitch showed some HD Fire Protect results wrongly — here's what happened, and how we fixed it.",
+    paragraphsHtml: [
+      `We have to be honest with you — earlier, a technical glitch on our end caused some <strong>HD Fire Protect</strong> results to wrongly show <strong>&ldquo;no application found.&rdquo;</strong> If you saw that and felt a knot in your stomach, we&rsquo;re genuinely sorry. You trusted us with something that matters, and we fell short.`,
+      `<strong>The good news:</strong> we found the root cause and fixed it. Your correct allotment status is now live in the app, and the corrected result has already been sent your way. Your actual application and allotment were never affected &mdash; this was only about what we were showing you.`,
+      `And here&rsquo;s the thing we really want to say: <strong>whether this IPO went your way or not &mdash; allotment or no allotment &mdash; we&rsquo;re so glad you&rsquo;re here. We love you guys. 💙</strong> The wins will come, and we&rsquo;ll be right here tracking every one of them with you.`,
+      `We&rsquo;re a small team building Nirantara to make IPO tracking effortless and stress-free. Moments like this only make us want to build it better. Thank you for your patience and your trust.`,
+      `&mdash; Team Nirantara`,
+    ],
+    paragraphsText: [
+      'We have to be honest with you — earlier, a technical glitch on our end caused some HD Fire Protect results to wrongly show "no application found." If you saw that and felt a knot in your stomach, we’re genuinely sorry. You trusted us with something that matters, and we fell short.',
+      'The good news: we found the root cause and fixed it. Your correct allotment status is now live in the app, and the corrected result has already been sent your way. Your actual application and allotment were never affected — this was only about what we were showing you.',
+      'And here’s the thing we really want to say: whether this IPO went your way or not — allotment or no allotment — we’re so glad you’re here. We love you guys. The wins will come, and we’ll be right here tracking every one of them with you.',
+      'We’re a small team building Nirantara to make IPO tracking effortless and stress-free. Moments like this only make us want to build it better. Thank you for your patience and your trust.',
+      '— Team Nirantara',
+    ],
+    cta: { label: 'Open Nirantara', url: 'https://www.nirantara.cloud' },
+  };
+
+  const emailResult = await broadcastAnnouncementEmail(email, { dryRun });
+  const pushResult = await broadcast(
+    "We're sorry — and it's fixed 💙",
+    'A glitch briefly showed "no application found" for some HD Fire Protect results. It’s fixed — your correct status is live in the app. Allotment or not, we’re grateful you’re here. We love you guys. 🙏',
+    { dryRun },
+  );
+
+  res.json({ dryRun, email: emailResult, push: pushResult });
 });
 
 /**
